@@ -31,6 +31,7 @@
 
   const TAU = Math.PI * 2;
   const WORLD_SIZE = 4800;
+  const CAMERA_ZOOM = 1.28;
   const ENEMY_LIMIT = 420;
   const BULLET_LIMIT = 260;
   const GEM_LIMIT = 320;
@@ -75,6 +76,7 @@
     cameraX: 0,
     cameraY: 0,
     grid: new Map(),
+    map: null,
     player: null,
     weapons: null,
     upgrades: [],
@@ -192,6 +194,9 @@
     state.victory = false;
     state.shake = 0;
     state.flash = 0;
+    state.cameraX = 0;
+    state.cameraY = 0;
+    state.map = generateMap();
     state.player = {
       x: 0,
       y: 0,
@@ -207,6 +212,7 @@
       damageScale: 1,
       dirX: 1,
       dirY: 0,
+      trailTimer: 0,
     };
     state.weapons = {
       bolt: { level: 1, timer: 0, cooldown: 0.62, damage: 18, speed: 560 },
@@ -218,6 +224,47 @@
     ui.endOverlay.classList.remove("active");
     ui.levelOverlay.classList.remove("active");
     playTone(180, 0.04, "square");
+  }
+
+  function generateMap() {
+    const palettes = [
+      { floor: ["#0d1f2a", "#12313a", "#163b34", "#213646"], accent: ["#42e8ff", "#77ff8a", "#ffd166"] },
+      { floor: ["#171728", "#20213a", "#27304a", "#23314a"], accent: ["#b48cff", "#42e8ff", "#ff4d6d"] },
+      { floor: ["#1a2020", "#22322b", "#2b3b32", "#3a3b2b"], accent: ["#77ff8a", "#ffd166", "#42e8ff"] },
+    ];
+    const palette = palettes[Math.floor(Math.random() * palettes.length)];
+    const rng = mulberry32(Math.floor(Math.random() * 2147483647));
+    const tileSize = 128;
+    const half = WORLD_SIZE / 2;
+    const tiles = [];
+    const props = [];
+
+    for (let y = -half; y < half; y += tileSize) {
+      for (let x = -half; x < half; x += tileSize) {
+        const n = rng();
+        const color = palette.floor[Math.floor(n * palette.floor.length)];
+        tiles.push({
+          x,
+          y,
+          color,
+          detail: rng(),
+          crack: rng() > 0.62,
+          glow: rng() > 0.86 ? palette.accent[Math.floor(rng() * palette.accent.length)] : null,
+        });
+        if (rng() > 0.88) {
+          props.push({
+            x: x + 20 + rng() * 88,
+            y: y + 18 + rng() * 92,
+            size: 10 + rng() * 28,
+            kind: rng() > 0.5 ? "crystal" : "rubble",
+            color: palette.accent[Math.floor(rng() * palette.accent.length)],
+            phase: rng() * TAU,
+          });
+        }
+      }
+    }
+
+    return { palette, tileSize, tiles, props };
   }
 
   function resize() {
@@ -279,8 +326,12 @@
     updateParticles(dt);
     updateProgression();
 
-    state.cameraX += (state.player.x - state.cameraX) * Math.min(1, dt * 8);
-    state.cameraY += (state.player.y - state.cameraY) * Math.min(1, dt * 8);
+    const targetCameraX = clampCameraCenterX(state.player.x);
+    const targetCameraY = clampCameraCenterY(state.player.y);
+    state.cameraX += (targetCameraX - state.cameraX) * Math.min(1, dt * 8);
+    state.cameraY += (targetCameraY - state.cameraY) * Math.min(1, dt * 8);
+    state.cameraX = clampCameraCenterX(state.cameraX);
+    state.cameraY = clampCameraCenterY(state.cameraY);
 
     if (state.player.hp <= 0) {
       endGame(false);
@@ -302,6 +353,11 @@
       p.dirY = vy;
       p.x += vx * p.speed * dt;
       p.y += vy * p.speed * dt;
+      p.trailTimer -= dt;
+      if (p.trailTimer <= 0) {
+        p.trailTimer = 0.055;
+        dust(p.x - vx * 12, p.y - vy * 12, -vx, -vy);
+      }
     }
     const half = WORLD_SIZE / 2 - 60;
     p.x = clamp(p.x, -half, half);
@@ -330,13 +386,18 @@
   function spawnEnemy(type) {
     const angle = Math.random() * TAU;
     const dist = Math.max(width, height) * 0.66 + 80 + Math.random() * 180;
+    const spawnX = state.player.x + Math.cos(angle) * dist;
+    const spawnY = state.player.y + Math.sin(angle) * dist;
     const e = pop(enemyPool, {});
     e.type = type;
     e.dead = false;
-    e.x = state.player.x + Math.cos(angle) * dist;
-    e.y = state.player.y + Math.sin(angle) * dist;
+    e.x = spawnX;
+    e.y = spawnY;
     e.hitTimer = 0;
     e.flash = 0;
+    e.anim = Math.random() * TAU;
+    e.flip = Math.cos(angle) > 0 ? -1 : 1;
+    e.variant = Math.floor(Math.random() * 4);
     e.boss = false;
     const scale = 1 + state.wave * 0.08;
     if (type === "runner") {
@@ -350,6 +411,9 @@
     } else {
       Object.assign(e, { r: 14, hp: 44 * scale, maxHp: 44 * scale, speed: 78 + state.wave * 1.5, damage: 14, xp: 5, color: "#42e8ff" });
     }
+    const half = WORLD_SIZE / 2;
+    e.x = clamp(e.x, -half + e.r, half - e.r);
+    e.y = clamp(e.y, -half + e.r, half - e.r);
     enemies.push(e);
   }
 
@@ -363,6 +427,11 @@
       const wobble = Math.sin(state.time * 2 + e.x * 0.01) * 0.18;
       e.x += (dx / dist + -dy / dist * wobble) * e.speed * dt;
       e.y += (dy / dist + dx / dist * wobble) * e.speed * dt;
+      const half = WORLD_SIZE / 2;
+      e.x = clamp(e.x, -half + e.r, half - e.r);
+      e.y = clamp(e.y, -half + e.r, half - e.r);
+      e.anim += dt * (2.4 + e.speed * 0.035);
+      e.flip = dx < 0 ? -1 : 1;
       e.hitTimer = Math.max(0, e.hitTimer - dt);
       e.flash = Math.max(0, e.flash - dt * 8);
 
@@ -386,7 +455,7 @@
         bucket = [];
         state.grid.set(key, bucket);
       }
-        if (!e.dead) bucket.push(e);
+      if (!e.dead) bucket.push(e);
     }
   }
 
@@ -511,6 +580,7 @@
     e.hp -= amount * state.player.damageScale;
     e.flash = 1;
     if (Math.random() < 0.55) spark(x, y, e.color);
+    if (Math.random() < 0.75) blood(x, y, "#6fdb6f");
     if (e.hp <= 0) killEnemy(e);
   }
 
@@ -530,6 +600,9 @@
           dead: false,
           x: e.x + (Math.random() - 0.5) * 40,
           y: e.y + (Math.random() - 0.5) * 40,
+          anim: Math.random() * TAU,
+          flip: Math.random() > 0.5 ? 1 : -1,
+          variant: Math.floor(Math.random() * 4),
           r: 10,
           hp: 22 + state.wave * 2,
           maxHp: 22 + state.wave * 2,
@@ -541,6 +614,9 @@
           flash: 0,
           boss: false,
         });
+        const half = WORLD_SIZE / 2;
+        child.x = clamp(child.x, -half + child.r, half - child.r);
+        child.y = clamp(child.y, -half + child.r, half - child.r);
         enemies.push(child);
       }
     }
@@ -588,6 +664,41 @@
     p.size = 2 + Math.random() * 4;
     p.color = color;
     particles.push(p);
+  }
+
+  function dust(x, y, vx, vy) {
+    if (particles.length >= PARTICLE_LIMIT) return;
+    const p = pop(particlePool, {});
+    p.kind = "dust";
+    p.x = x + (Math.random() - 0.5) * 10;
+    p.y = y + (Math.random() - 0.5) * 10;
+    p.vx = vx * 36 + (Math.random() - 0.5) * 24;
+    p.vy = vy * 36 + (Math.random() - 0.5) * 24;
+    p.life = 0.45 + Math.random() * 0.24;
+    p.maxLife = p.life;
+    p.t = 0;
+    p.size = 5 + Math.random() * 8;
+    p.color = "#8fa2a0";
+    particles.push(p);
+  }
+
+  function blood(x, y, color) {
+    for (let i = 0; i < 3 && particles.length < PARTICLE_LIMIT; i++) {
+      const p = pop(particlePool, {});
+      p.kind = "blood";
+      p.x = x;
+      p.y = y;
+      const a = Math.random() * TAU;
+      const s = 60 + Math.random() * 120;
+      p.vx = Math.cos(a) * s;
+      p.vy = Math.sin(a) * s;
+      p.life = 0.25 + Math.random() * 0.25;
+      p.maxLife = p.life;
+      p.t = 0;
+      p.size = 3 + Math.random() * 5;
+      p.color = color;
+      particles.push(p);
+    }
   }
 
   function burst(x, y, count, color, speed) {
@@ -640,6 +751,8 @@
         ui.levelOverlay.classList.remove("active");
         state.mode = "playing";
         state.flash = 0.18;
+        showPulse(state.player.x, state.player.y, 145, "#ffd166", 0.42);
+        burst(state.player.x, state.player.y, 24, "#ffd166", 180);
         playTone(430, 0.06, "triangle");
       }, { once: true });
       ui.choiceList.appendChild(button);
@@ -664,15 +777,18 @@
   function render() {
     const sx = state.shake > 0 ? (Math.random() - 0.5) * state.shake : 0;
     const sy = state.shake > 0 ? (Math.random() - 0.5) * state.shake : 0;
-    const camX = state.cameraX - width / 2 - sx;
-    const camY = state.cameraY - height / 2 - sy;
+    const viewW = visibleWorldWidth();
+    const viewH = visibleWorldHeight();
+    const camX = clampViewOriginX(state.cameraX - viewW / 2 - sx / CAMERA_ZOOM);
+    const camY = clampViewOriginY(state.cameraY - viewH / 2 - sy / CAMERA_ZOOM);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#060912";
     ctx.fillRect(0, 0, width, height);
     ctx.save();
+    ctx.scale(CAMERA_ZOOM, CAMERA_ZOOM);
     ctx.translate(-camX, -camY);
-    drawGrid(camX, camY);
+    drawMap(camX, camY);
     drawBounds();
     drawGems();
     drawBullets();
@@ -688,29 +804,75 @@
     }
   }
 
-  function drawGrid(camX, camY) {
+  function drawMap(camX, camY) {
+    const map = state.map;
+    if (!map) return;
+    const viewW = visibleWorldWidth();
+    const viewH = visibleWorldHeight();
+    const pad = map.tileSize;
+    for (const tile of map.tiles) {
+      if (tile.x > camX + viewW + pad || tile.x + map.tileSize < camX - pad || tile.y > camY + viewH + pad || tile.y + map.tileSize < camY - pad) continue;
+      ctx.fillStyle = tile.color;
+      ctx.fillRect(tile.x, tile.y, map.tileSize, map.tileSize);
+      ctx.fillStyle = tile.detail > 0.5 ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.08)";
+      ctx.fillRect(tile.x + 8, tile.y + 8, map.tileSize - 16, map.tileSize - 16);
+      if (tile.glow) {
+        ctx.strokeStyle = hexToRgba(tile.glow, 0.35);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tile.x + 4, tile.y + 4, map.tileSize - 8, map.tileSize - 8);
+      }
+      if (tile.crack) {
+        ctx.strokeStyle = "rgba(3,6,12,0.34)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(tile.x + 18, tile.y + 20 + tile.detail * 60);
+        ctx.lineTo(tile.x + 46, tile.y + 44);
+        ctx.lineTo(tile.x + 82, tile.y + 36 + tile.detail * 46);
+        ctx.lineTo(tile.x + 110, tile.y + 88);
+        ctx.stroke();
+      }
+    }
+
+    ctx.strokeStyle = "rgba(66, 232, 255, 0.09)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
     const step = 64;
     const startX = Math.floor(camX / step) * step;
     const startY = Math.floor(camY / step) * step;
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(66, 232, 255, 0.07)";
-    ctx.beginPath();
-    for (let x = startX; x < camX + width + step; x += step) {
+    for (let x = startX; x < camX + viewW + step; x += step) {
       ctx.moveTo(Math.round(x), camY - step);
-      ctx.lineTo(Math.round(x), camY + height + step);
+      ctx.lineTo(Math.round(x), camY + viewH + step);
     }
-    for (let y = startY; y < camY + height + step; y += step) {
+    for (let y = startY; y < camY + viewH + step; y += step) {
       ctx.moveTo(camX - step, Math.round(y));
-      ctx.lineTo(camX + width + step, Math.round(y));
+      ctx.lineTo(camX + viewW + step, Math.round(y));
     }
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(255,255,255,0.055)";
-    for (let x = startX; x < camX + width + step; x += step * 2) {
-      for (let y = startY; y < camY + height + step; y += step * 2) {
-        if (((x + y) / step) % 4 === 0) ctx.fillRect(Math.round(x - 2), Math.round(y - 2), 4, 4);
-      }
+    for (const prop of map.props) {
+      if (!inView(prop.x, prop.y, prop.size + 80)) continue;
+      drawMapProp(prop);
     }
+  }
+
+  function drawMapProp(prop) {
+    ctx.save();
+    ctx.translate(Math.round(prop.x), Math.round(prop.y));
+    if (prop.kind === "crystal") {
+      const pulse = 0.75 + Math.sin(state.time * 3 + prop.phase) * 0.25;
+      ctx.fillStyle = hexToRgba(prop.color, 0.34 * pulse);
+      drawDiamond(0, 0, prop.size + 10);
+      ctx.fillStyle = prop.color;
+      drawDiamond(0, 0, prop.size);
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillRect(-2, -prop.size * 0.7, 4, prop.size * 0.9);
+    } else {
+      ctx.fillStyle = "rgba(3,6,12,0.42)";
+      ctx.fillRect(-prop.size * 0.6, -prop.size * 0.35, prop.size * 1.2, prop.size * 0.7);
+      ctx.fillStyle = hexToRgba(prop.color, 0.28);
+      ctx.fillRect(-prop.size * 0.45, -prop.size * 0.22, prop.size * 0.9, prop.size * 0.44);
+    }
+    ctx.restore();
   }
 
   function drawBounds() {
@@ -723,17 +885,136 @@
   function drawPlayer() {
     if (!state.player) return;
     const p = state.player;
+    const hpRatio = p.hp / p.maxHp;
+    const moving = input.up || input.down || input.left || input.right || Math.abs(input.vx) > 0.05 || Math.abs(input.vy) > 0.05;
+    const pulse = 1 + Math.sin(state.time * 7) * 0.04;
+    const hitPop = 1 + (p.invuln > 0 ? Math.sin(p.invuln * 26) * 0.08 + 0.12 : 0);
+    const radius = p.r * pulse * hitPop;
+    const flash = p.invuln > 0 && Math.floor(p.invuln * 12) % 2 === 0;
+    const facing = Math.atan2(p.dirY, p.dirX);
+    const bodyColor = flash ? "#ffffff" : "#42e8ff";
+    const outlineColor = flash ? "#ffffff" : "#f3f7ff";
+    const coreColor = flash ? "#42e8ff" : "#031018";
+
     ctx.save();
     ctx.translate(Math.round(p.x), Math.round(p.y));
-    ctx.rotate(Math.atan2(p.dirY, p.dirX));
-    ctx.fillStyle = p.invuln > 0 ? "#ffffff" : "#42e8ff";
-    ctx.fillRect(-11, -11, 22, 22);
-    ctx.fillStyle = "#031018";
-    ctx.fillRect(2, -5, 12, 10);
-    ctx.strokeStyle = "#f3f7ff";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-11, -11, 22, 22);
+
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(0, radius * 0.68, 30, 14, 0, 0, TAU);
+    ctx.fill();
+
+    drawDashedCircle(0, 0, p.magnet, 18, "rgba(90,140,210,0.46)");
+
+    if (hpRatio < 0.35) {
+      const alertR = radius + 8 + Math.sin(state.time * 8.4) * 4;
+      ctx.strokeStyle = "rgba(255,77,109,0.86)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, alertR, 0, TAU);
+      ctx.stroke();
+    }
+
+    drawGlowCircle(0, 0, radius * 1.05, moving ? 0.46 : 0.32, "#42e8ff");
+
+    const coreAngle = facing + Math.sin(state.time * 7) * 0.2;
+    drawRegularPolygon(0, 0, radius * 1.08, 8, coreAngle * 0.2, bodyColor, true);
+    drawRegularPolygon(0, 0, radius * 1.08, 8, coreAngle * 0.2, outlineColor, false, 2);
+    drawDiamondOutline(0, 0, radius * 0.5, radius * 0.62, outlineColor, 2);
+
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.3, 0, TAU);
+    ctx.fill();
+
+    const orbitR = radius + 6;
+    const orbitA = state.time * 4.2;
+    ctx.fillStyle = outlineColor;
+    for (let i = 0; i < 2; i++) {
+      const a = orbitA + Math.PI * i;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * orbitR, Math.sin(a) * orbitR * 0.42, 2.8, 0, TAU);
+      ctx.fill();
+    }
+
+    drawDirectionArrow(facing, radius, outlineColor);
     ctx.restore();
+  }
+
+  function drawGlowCircle(x, y, radius, alpha, color) {
+    for (let i = 3; i >= 1; i--) {
+      ctx.fillStyle = hexToRgba(color, alpha / (i * 2.2));
+      ctx.beginPath();
+      ctx.arc(x, y, radius * (1 + i * 0.32), 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  function drawRegularPolygon(x, y, radius, sides, angle, color, fill, width = 1) {
+    ctx.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const a = angle + (i / sides) * TAU;
+      const px = x + Math.cos(a) * radius;
+      const py = y + Math.sin(a) * radius;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    if (fill) {
+      ctx.fillStyle = color;
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+  }
+
+  function drawDiamondOutline(x, y, halfW, halfH, color, width) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(x, y - halfH);
+    ctx.lineTo(x + halfW, y);
+    ctx.lineTo(x, y + halfH);
+    ctx.lineTo(x - halfW, y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  function drawDirectionArrow(angle, radius, color) {
+    const tipR = radius + 12;
+    const baseR = radius - 1;
+    const perp = angle + Math.PI / 2;
+    const halfWidth = 5;
+    const tipX = Math.cos(angle) * tipR;
+    const tipY = Math.sin(angle) * tipR;
+    const b1X = Math.cos(angle) * baseR + Math.cos(perp) * halfWidth;
+    const b1Y = Math.sin(angle) * baseR + Math.sin(perp) * halfWidth;
+    const b2X = Math.cos(angle) * baseR - Math.cos(perp) * halfWidth;
+    const b2Y = Math.sin(angle) * baseR - Math.sin(perp) * halfWidth;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(b1X, b1Y);
+    ctx.lineTo(b2X, b2Y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawDashedCircle(x, y, radius, segments, color) {
+    if (radius <= 0) return;
+    const step = TAU / segments;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < segments; i += 2) {
+      const a1 = i * step;
+      const a2 = a1 + step * 0.55;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a1) * radius, y + Math.sin(a1) * radius);
+      ctx.lineTo(x + Math.cos(a2) * radius, y + Math.sin(a2) * radius);
+      ctx.stroke();
+    }
   }
 
   function drawEnemies() {
@@ -741,26 +1022,91 @@
       if (!inView(e.x, e.y, e.r + 80)) continue;
       ctx.save();
       ctx.translate(Math.round(e.x), Math.round(e.y));
-      const hpRatio = Math.max(0, e.hp / e.maxHp);
-      ctx.fillStyle = e.flash > 0 ? "#ffffff" : e.color;
       if (e.boss) {
-        ctx.rotate(state.time * 0.8);
-        ctx.fillRect(-e.r, -e.r, e.r * 2, e.r * 2);
-        ctx.clearRect(-e.r * 0.38, -e.r * 0.38, e.r * 0.76, e.r * 0.76);
-      } else if (e.type === "runner") {
-        drawDiamond(0, 0, e.r);
-      } else if (e.type === "tank") {
-        ctx.fillRect(-e.r, -e.r, e.r * 2, e.r * 2);
+        drawBossZombie(e);
       } else {
-        drawHex(0, 0, e.r);
+        drawZombie(e);
       }
-      ctx.strokeStyle = "rgba(255,255,255,0.76)";
-      ctx.lineWidth = e.boss ? 3 : 2;
-      ctx.strokeRect(-e.r, -e.r - 8, e.r * 2, 3);
-      ctx.fillStyle = "#77ff8a";
-      ctx.fillRect(-e.r, -e.r - 8, e.r * 2 * hpRatio, 3);
       ctx.restore();
     }
+  }
+
+  function drawZombie(e) {
+    const s = e.r / 14;
+    const step = Math.sin(e.anim);
+    const lurch = Math.sin(e.anim * 0.5 + e.variant) * 2;
+    const flash = e.flash > 0;
+    const skin = flash ? "#ffffff" : "#7ccf68";
+    const skinDark = flash ? "#e8f7ff" : "#4e8f4e";
+    const cloth = e.type === "runner" ? "#d6b64f" : e.type === "tank" ? "#7b66c7" : e.type === "splitter" ? "#61a06a" : "#2b8da4";
+
+    ctx.scale(e.flip || 1, 1);
+    ctx.translate(lurch, 0);
+    ctx.fillStyle = "rgba(0,0,0,0.24)";
+    ctx.fillRect(-8 * s, 9 * s, 18 * s, 5 * s);
+
+    ctx.fillStyle = skinDark;
+    ctx.fillRect(-9 * s, -5 * s + step * 2, 6 * s, 20 * s);
+    ctx.fillRect(3 * s, -5 * s - step * 2, 6 * s, 20 * s);
+
+    ctx.fillStyle = cloth;
+    ctx.fillRect(-10 * s, -12 * s, 20 * s, 22 * s);
+    ctx.fillStyle = "rgba(255,77,109,0.42)";
+    ctx.fillRect(2 * s, -9 * s, 6 * s, 8 * s);
+    ctx.fillStyle = "rgba(3,6,12,0.34)";
+    ctx.fillRect(-8 * s, -5 * s, 16 * s, 4 * s);
+
+    ctx.fillStyle = skin;
+    ctx.fillRect(-8 * s, -28 * s, 16 * s, 16 * s);
+    ctx.fillStyle = "#203018";
+    ctx.fillRect(-4 * s, -23 * s, 3 * s, 3 * s);
+    ctx.fillRect(4 * s, -23 * s, 3 * s, 3 * s);
+    ctx.fillStyle = "#f3f7ff";
+    ctx.fillRect(4 * s, -24 * s, 2 * s, 2 * s);
+    ctx.fillStyle = "#ff4d6d";
+    ctx.fillRect(-2 * s, -16 * s, 7 * s, 2 * s);
+    ctx.fillStyle = skinDark;
+    ctx.fillRect(-9 * s, -30 * s, 8 * s, 4 * s);
+
+    ctx.fillStyle = skin;
+    ctx.fillRect(-18 * s, -10 * s + step * 4, 8 * s, 6 * s);
+    ctx.fillRect(10 * s, -10 * s - step * 4, 8 * s, 6 * s);
+
+    if (e.type === "splitter") {
+      ctx.fillStyle = "#b6ff99";
+      ctx.fillRect(-2 * s, -32 * s, 4 * s, 5 * s);
+    }
+  }
+
+  function drawBossZombie(e) {
+    const pulse = Math.sin(e.anim) * 4;
+    ctx.scale(e.flip || 1, 1);
+    ctx.translate(Math.sin(e.anim * 0.4) * 3, 0);
+    ctx.fillStyle = "rgba(0,0,0,0.32)";
+    ctx.fillRect(-46, 30, 92, 15);
+    ctx.fillStyle = e.flash > 0 ? "#ffffff" : "#6fbf5e";
+    ctx.fillRect(-35, -60 + pulse * 0.2, 70, 42);
+    ctx.fillStyle = e.flash > 0 ? "#e8f7ff" : "#4b7f44";
+    ctx.fillRect(-48, -18, 96, 70);
+    ctx.fillStyle = "#5d345e";
+    ctx.fillRect(-42, -6, 84, 28);
+    ctx.fillStyle = "#171728";
+    ctx.fillRect(-22, -46, 10, 10);
+    ctx.fillRect(16, -46, 10, 10);
+    ctx.fillStyle = "#f3f7ff";
+    ctx.fillRect(19, -48, 5, 5);
+    ctx.fillStyle = "#ff4d6d";
+    ctx.fillRect(-12, -30, 28, 5);
+    ctx.fillStyle = "rgba(255,77,109,0.45)";
+    ctx.fillRect(8, -2, 24, 20);
+    ctx.fillStyle = e.flash > 0 ? "#ffffff" : "#6fbf5e";
+    ctx.fillRect(-72, -18 + pulse, 34, 12);
+    ctx.fillRect(38, -18 - pulse, 34, 12);
+    ctx.fillRect(-28, 48 + pulse, 18, 30);
+    ctx.fillRect(10, 48 - pulse, 18, 30);
+    ctx.strokeStyle = "rgba(255,77,109,0.6)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-50, -64, 100, 142);
   }
 
   function drawBullets() {
@@ -805,6 +1151,12 @@
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius * (1 - alpha * 0.2), 0, TAU);
         ctx.stroke();
+      } else if (p.kind === "dust") {
+        ctx.fillStyle = `rgba(143,162,160,${alpha * 0.28})`;
+        ctx.fillRect(Math.round(p.x - p.size / 2), Math.round(p.y - p.size / 2), p.size, p.size);
+      } else if (p.kind === "blood") {
+        ctx.fillStyle = hexToRgba(p.color, alpha * 0.85);
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, Math.max(2, p.size * 0.55));
       } else {
         ctx.fillStyle = hexToRgba(p.color, alpha);
         ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
@@ -871,7 +1223,43 @@
   }
 
   function inView(x, y, pad) {
-    return Math.abs(x - state.cameraX) < width / 2 + pad && Math.abs(y - state.cameraY) < height / 2 + pad;
+    return Math.abs(x - state.cameraX) < visibleWorldWidth() / 2 + pad && Math.abs(y - state.cameraY) < visibleWorldHeight() / 2 + pad;
+  }
+
+  function clampCameraCenterX(x) {
+    const half = WORLD_SIZE / 2;
+    const min = -half + visibleWorldWidth() / 2;
+    const max = half - visibleWorldWidth() / 2;
+    return min > max ? 0 : clamp(x, min, max);
+  }
+
+  function clampCameraCenterY(y) {
+    const half = WORLD_SIZE / 2;
+    const min = -half + visibleWorldHeight() / 2;
+    const max = half - visibleWorldHeight() / 2;
+    return min > max ? 0 : clamp(y, min, max);
+  }
+
+  function clampViewOriginX(x) {
+    const half = WORLD_SIZE / 2;
+    const min = -half;
+    const max = half - visibleWorldWidth();
+    return min > max ? -visibleWorldWidth() / 2 : clamp(x, min, max);
+  }
+
+  function clampViewOriginY(y) {
+    const half = WORLD_SIZE / 2;
+    const min = -half;
+    const max = half - visibleWorldHeight();
+    return min > max ? -visibleWorldHeight() / 2 : clamp(y, min, max);
+  }
+
+  function visibleWorldWidth() {
+    return width / CAMERA_ZOOM;
+  }
+
+  function visibleWorldHeight() {
+    return height / CAMERA_ZOOM;
   }
 
   function drawDiamond(x, y, r) {
@@ -906,6 +1294,16 @@
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  function mulberry32(seed) {
+    return function nextRandom() {
+      seed |= 0;
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
   }
 
   function pop(pool, fallback) {
@@ -1047,6 +1445,7 @@
   resize();
   bindInput();
   updateBestText();
+  state.map = generateMap();
   state.player = {
     x: 0,
     y: 0,
@@ -1062,6 +1461,7 @@
     damageScale: 1,
     dirX: 1,
     dirY: 0,
+    trailTimer: 0,
   };
   state.weapons = {
     bolt: { level: 1, timer: 0, cooldown: 0.62, damage: 18, speed: 560 },
