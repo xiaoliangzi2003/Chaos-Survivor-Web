@@ -203,7 +203,63 @@
   }
   function drawMap(cx, cy, vw, vh) { for (const t of map) { if (t.x > cx + vw + 128 || t.x + 128 < cx - 128 || t.y > cy + vh + 128 || t.y + 128 < cy - 128) continue; ctx.fillStyle = t.c; ctx.fillRect(t.x,t.y,128,128); ctx.fillStyle=t.d>.5?"rgba(255,255,255,.035)":"rgba(0,0,0,.08)"; ctx.fillRect(t.x+8,t.y+8,112,112);} ctx.strokeStyle="rgba(66,232,255,.09)";ctx.lineWidth=1;ctx.beginPath(); for(let x=Math.floor(cx/64)*64;x<cx+vw+64;x+=64){ctx.moveTo(x,cy-64);ctx.lineTo(x,cy+vh+64);} for(let y=Math.floor(cy/64)*64;y<cy+vh+64;y+=64){ctx.moveTo(cx-64,y);ctx.lineTo(cx+vw+64,y);}ctx.stroke(); for(const p of props){ if(p.x<cx-80||p.x>cx+vw+80||p.y<cy-80||p.y>cy+vh+80)continue; ctx.fillStyle=p.c; diamondAt(p.x,p.y+Math.sin(s.time*3+p.p)*2,p.z);} }
   function drawBounds(){const h=WORLD/2;ctx.strokeStyle="rgba(255,77,109,.45)";ctx.lineWidth=4;ctx.strokeRect(-h,-h,WORLD,WORLD);}
-  function drawPlayer(){ctx.save();ctx.translate(player.x,player.y);ctx.fillStyle="rgba(0,0,0,.28)";ctx.beginPath();ctx.ellipse(0,player.r*.68,30,14,0,0,TAU);ctx.fill();glow(0,0,18,.42,"#42e8ff");poly(0,0,16,8,Math.atan2(player.dirY,player.dirX)*.2,player.inv>0?"#fff":"#42e8ff",true);poly(0,0,16,8,0,"#fff",false);ctx.fillStyle="#031018";ctx.beginPath();ctx.arc(0,0,5,0,TAU);ctx.fill();ctx.restore();}
+  function drawPlayer(){
+    const moving=input.up||input.down||input.left||input.right||Math.abs(input.vx)>.05||Math.abs(input.vy)>.05;
+    const hurt=player.inv>0, low=player.hp/player.maxHp<.35;
+    const mood=hurt?"hurt":low?"worried":moving?"happy":Math.floor(s.time*1.15)%4===0?"blink":Math.floor(s.time*1.15)%4===1?"smile":Math.floor(s.time*1.15)%4===2?"curious":"happy";
+    const bob=Math.sin(s.time*7)*(moving?2.2:1.1), squash=1+Math.sin(s.time*5)*.025;
+    ctx.save();
+    ctx.translate(player.x,player.y+bob);
+    ctx.fillStyle="rgba(0,0,0,.26)";
+    ctx.beginPath();ctx.ellipse(0,20,24,8,0,0,TAU);ctx.fill();
+    glow(0,0,24,hurt?.32:.42,hurt?"#ff9ab0":"#ffd6a8");
+    ctx.scale(1.02, squash);
+
+    ctx.fillStyle=hurt?"#ffd7dd":"#ffd6a8";
+    ctx.beginPath();ctx.arc(0,0,22,0,TAU);ctx.fill();
+    ctx.fillStyle="#ffbd8a";
+    ctx.beginPath();ctx.arc(-13,5,5,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.arc(13,5,5,0,TAU);ctx.fill();
+    ctx.fillStyle="#fff4d8";
+    ctx.beginPath();ctx.arc(-7,-9,7,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.arc(7,-9,7,0,TAU);ctx.fill();
+
+    drawPlayerEyes(mood);
+    drawPlayerMouth(mood);
+
+    ctx.fillStyle="rgba(255,255,255,.65)";
+    ctx.beginPath();ctx.arc(-8,-13,4,0,TAU);ctx.fill();
+    ctx.fillStyle="#f3b05f";
+    ctx.beginPath();ctx.arc(0,-1,2.4,0,TAU);ctx.fill();
+    ctx.strokeStyle="#7b4a2b";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,22,0,TAU);ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPlayerEyes(mood){
+    ctx.strokeStyle="#2a1d18";ctx.fillStyle="#2a1d18";ctx.lineWidth=2.4;ctx.lineCap="round";
+    if(mood==="blink"){
+      ctx.beginPath();ctx.moveTo(-12,-5);ctx.lineTo(-5,-5);ctx.moveTo(5,-5);ctx.lineTo(12,-5);ctx.stroke();return;
+    }
+    if(mood==="happy"){
+      ctx.beginPath();ctx.arc(-8,-6,4,Math.PI*.08,Math.PI*.92);ctx.stroke();ctx.beginPath();ctx.arc(8,-6,4,Math.PI*.08,Math.PI*.92);ctx.stroke();return;
+    }
+    if(mood==="hurt"){
+      ctx.beginPath();ctx.moveTo(-12,-9);ctx.lineTo(-5,-3);ctx.moveTo(-5,-9);ctx.lineTo(-12,-3);ctx.moveTo(5,-9);ctx.lineTo(12,-3);ctx.moveTo(12,-9);ctx.lineTo(5,-3);ctx.stroke();return;
+    }
+    if(mood==="worried"){
+      ctx.fillRect(-11,-6,5,6);ctx.fillRect(6,-6,5,6);ctx.strokeStyle="#7b4a2b";ctx.beginPath();ctx.moveTo(-13,-12);ctx.lineTo(-5,-10);ctx.moveTo(5,-10);ctx.lineTo(13,-12);ctx.stroke();return;
+    }
+    ctx.beginPath();ctx.arc(-8,-6,3.3,0,TAU);ctx.fill();ctx.beginPath();ctx.arc(8,-6,3.3,0,TAU);ctx.fill();
+    ctx.fillStyle="#fff";ctx.fillRect(-7,-8,1.6,1.6);ctx.fillRect(9,-8,1.6,1.6);
+  }
+
+  function drawPlayerMouth(mood){
+    ctx.strokeStyle="#7b2f2f";ctx.fillStyle="#7b2f2f";ctx.lineWidth=2;ctx.lineCap="round";
+    if(mood==="hurt"){ctx.beginPath();ctx.arc(0,8,4,0,TAU);ctx.stroke();return;}
+    if(mood==="worried"){ctx.beginPath();ctx.arc(0,12,6,Math.PI*1.15,Math.PI*1.85);ctx.stroke();return;}
+    if(mood==="curious"){ctx.beginPath();ctx.arc(0,8,3,0,TAU);ctx.fill();return;}
+    ctx.beginPath();ctx.arc(0,4,8,Math.PI*.18,Math.PI*.82);ctx.stroke();
+  }
   function drawEnemy(e){
     ctx.save();
     ctx.translate(e.x,e.y);
