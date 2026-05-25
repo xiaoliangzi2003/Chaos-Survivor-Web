@@ -174,7 +174,8 @@ button {
 
 .quick-actions button:hover,
 .primary:hover,
-.choice-card:hover {
+.choice-card:hover,
+.pause-actions button:hover {
   border-color: rgba(66, 232, 255, 0.58);
   box-shadow: 0 0 0 2px rgba(66, 232, 255, 0.16), 0 18px 48px rgba(0, 0, 0, 0.3);
 }
@@ -200,7 +201,8 @@ button {
 }
 
 .intro,
-.end {
+.end,
+.pause-menu {
   text-align: center;
 }
 
@@ -389,6 +391,31 @@ h2 {
 
 .weapon-confirm {
   justify-self: start;
+}
+
+.pause-menu {
+  width: min(440px, 100%);
+}
+
+.pause-actions {
+  display: grid;
+  gap: 10px;
+  margin: 18px auto 0;
+  width: min(280px, 100%);
+}
+
+.pause-actions button {
+  min-height: 46px;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.pause-actions .primary {
+  border-color: rgba(66, 232, 255, 0.48);
+  color: #031018;
 }
 
 .touch-stick {

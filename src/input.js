@@ -2,7 +2,7 @@ import { input, state } from "./state.js";
 import { ui } from "./ui.js";
 import { setMuted, isMuted, nextMusicTrack } from "./audio.js";
 
-export function bindInput({ start, restart, togglePause }) {
+export function bindInput({ start, restart, togglePause, resume, returnToMenu }) {
   const keys = new Map([["KeyW", "up"], ["ArrowUp", "up"], ["KeyS", "down"], ["ArrowDown", "down"], ["KeyA", "left"], ["ArrowLeft", "left"], ["KeyD", "right"], ["ArrowRight", "right"]]);
   window.addEventListener("keydown", (event) => {
     const action = keys.get(event.code);
@@ -26,6 +26,9 @@ export function bindInput({ start, restart, togglePause }) {
   ui.canvas.addEventListener("pointercancel", clearStick);
   ui.startButton.addEventListener("click", start);
   ui.restartButton.addEventListener("click", restart);
+  ui.pauseRestartButton.addEventListener("click", restart);
+  ui.resumeButton.addEventListener("click", resume);
+  ui.menuButton.addEventListener("click", returnToMenu);
   ui.pauseButton.addEventListener("click", togglePause);
   ui.muteButton.addEventListener("click", () => {
     setMuted(!isMuted());

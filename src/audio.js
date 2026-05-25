@@ -5,6 +5,7 @@ let musicTracks = null;
 let musicIndex = 0;
 let proceduralTimer = null;
 let musicGain = null;
+let proceduralPaused = false;
 const lastPlayed = new Map();
 const MUSIC_MANIFEST_URL = "./assets/music/playlist.json";
 const SUPPORTED_MUSIC = new Set(["mp3", "ogg", "wav", "m4a"]);
@@ -54,6 +55,16 @@ export function playSfx(name) {
 
 export async function startMusic() {
   if (muted) return;
+  if (musicAudio) {
+    if (musicAudio.paused) musicAudio.play().catch(() => {});
+    return;
+  }
+  if (proceduralTimer) return;
+  if (proceduralPaused) {
+    proceduralPaused = false;
+    startProceduralMusic();
+    return;
+  }
   stopProceduralMusic();
   const tracks = await loadMusicTracks();
   if (!tracks.length) {
@@ -69,7 +80,21 @@ export function stopMusic() {
     musicAudio.src = "";
     musicAudio = null;
   }
+  proceduralPaused = false;
   stopProceduralMusic();
+}
+
+export function pauseMusic() {
+  if (musicAudio && !musicAudio.paused) musicAudio.pause();
+  if (proceduralTimer) {
+    stopProceduralMusic();
+    proceduralPaused = true;
+  }
+}
+
+export function resumeMusic() {
+  if (muted) return;
+  startMusic();
 }
 
 export async function nextMusicTrack() {
@@ -111,6 +136,7 @@ function playMusicTrack(index) {
   const track = musicTracks[index];
   if (!track || muted) return;
   stopMusic();
+  proceduralPaused = false;
   musicIndex = index;
   musicAudio = new Audio(track.url);
   musicAudio.loop = musicTracks.length === 1;

@@ -18,12 +18,16 @@ export const ui = {
   fpsText: document.getElementById("fpsText"),
   startOverlay: document.getElementById("startOverlay"),
   levelOverlay: document.getElementById("levelOverlay"),
+  pauseOverlay: document.getElementById("pauseOverlay"),
   endOverlay: document.getElementById("endOverlay"),
   levelEyebrow: document.querySelector("#levelOverlay .eyebrow"),
   levelTitle: document.querySelector("#levelOverlay h2"),
   choiceList: document.getElementById("choiceList"),
   startButton: document.getElementById("startButton"),
   restartButton: document.getElementById("restartButton"),
+  resumeButton: document.getElementById("resumeButton"),
+  pauseRestartButton: document.getElementById("pauseRestartButton"),
+  menuButton: document.getElementById("menuButton"),
   pauseButton: document.getElementById("pauseButton"),
   muteButton: document.getElementById("muteButton"),
   bestText: document.getElementById("bestText"),
@@ -134,6 +138,22 @@ export function showWeaponCarousel({ eyebrow, title, items, onPick }) {
 export function hideChoices() {
   clearPreview();
   ui.levelOverlay.classList.remove("active");
+}
+
+export function showPauseMenu() {
+  ui.pauseOverlay.classList.add("active");
+}
+
+export function hidePauseMenu() {
+  ui.pauseOverlay.classList.remove("active");
+}
+
+export function hideAllOverlays() {
+  clearPreview();
+  ui.startOverlay.classList.remove("active");
+  ui.levelOverlay.classList.remove("active");
+  ui.pauseOverlay.classList.remove("active");
+  ui.endOverlay.classList.remove("active");
 }
 
 export function pickThree(items) {

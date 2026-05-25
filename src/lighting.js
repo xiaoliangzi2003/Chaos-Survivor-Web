@@ -146,17 +146,19 @@ function addEntityLights(lights, camera, viewport) {
       continue;
     }
     if (enemyLights >= MAX_ENEMY_LIGHTS) continue;
-    if (e.shielded || e.freezeTimer > 0 || e.flash > 0.4) {
-      addWorldLight(lights, camera, viewport, {
-        x: e.x,
-        y: e.y,
-        radius: e.r * (e.freezeTimer > 0 ? 4 : 3),
-        color: e.freezeTimer > 0 ? "#9ff4ff" : e.color,
-        strength: e.flash > 0.4 ? 0.32 : 0.22,
-        core: 0.14,
-      });
-      enemyLights++;
-    }
+    const frozen = e.freezeTimer > 0;
+    const flashing = e.flash > 0.4;
+    const shielded = e.shielded;
+    const pulse = 0.78 + Math.sin(state.time * 3.4 + (e.phase || e.anim || 0)) * 0.22;
+    addWorldLight(lights, camera, viewport, {
+      x: e.x,
+      y: e.y,
+      radius: e.r * (frozen ? 4 : shielded || flashing ? 3.2 : 2.45),
+      color: frozen ? "#9ff4ff" : e.color,
+      strength: (flashing ? 0.34 : shielded || frozen ? 0.26 : 0.13) * pulse,
+      core: frozen || flashing ? 0.14 : 0.1,
+    });
+    enemyLights++;
   }
 }
 

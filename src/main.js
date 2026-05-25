@@ -1,6 +1,6 @@
 import { SAVE_KEY, TOTAL_WAVES, waveDurationFor } from "./constants.js";
 import { state, world, resetRun } from "./state.js";
-import { ui, updateHud, updateBestText, showChoices, showWeaponCarousel, hideChoices, pickThree, showEnd } from "./ui.js";
+import { ui, updateHud, updateBestText, showChoices, showWeaponCarousel, hideChoices, showPauseMenu, hidePauseMenu, hideAllOverlays, pickThree, showEnd } from "./ui.js";
 import { generateMap } from "./map.js";
 import { bindInput } from "./input.js";
 import { isBossWave, setupEnemyRegistry } from "./enemyRegistry.js";
@@ -8,7 +8,7 @@ import { updatePlayer, updateSpawning, updateEnemies, rebuildGrid, updateGems, c
 import { updateWeapons, STARTER_WEAPONS, UPGRADE_DEFS, activateWeapon } from "./weapons.js";
 import { updateEffects } from "./effects.js";
 import { resizeCanvas, updateCamera, render } from "./renderer.js";
-import { playSfx, startMusic, stopMusic } from "./audio.js";
+import { playSfx, startMusic, stopMusic, pauseMusic, resumeMusic } from "./audio.js";
 
 export async function bootGame() {
   await setupEnemyRegistry();
@@ -20,8 +20,7 @@ export async function bootGame() {
 
   function start() {
     resetRun(generateMap());
-    ui.startOverlay.classList.remove("active");
-    ui.endOverlay.classList.remove("active");
+    hideAllOverlays();
     showStarterChoices();
     playSfx("start");
     startMusic();
@@ -98,20 +97,41 @@ export async function bootGame() {
     state.victory = victory;
     const best = Number(localStorage.getItem(SAVE_KEY) || 0);
     if (state.time > best) localStorage.setItem(SAVE_KEY, String(Math.floor(state.time)));
+    hidePauseMenu();
     showEnd(victory);
     playSfx(victory ? "victory" : "defeat");
     stopMusic();
   }
 
+  function pauseGame() {
+    if (state.mode !== "playing") return;
+    state.mode = "paused";
+    ui.pauseButton.textContent = "▶";
+    pauseMusic();
+    showPauseMenu();
+  }
+
+  function resumeGame() {
+    if (state.mode !== "paused") return;
+    state.mode = "playing";
+    ui.pauseButton.textContent = "II";
+    hidePauseMenu();
+    resumeMusic();
+  }
+
   function togglePause() {
-    if (state.mode === "playing") {
-      state.mode = "paused";
-      ui.pauseButton.textContent = "▶";
-    } else if (state.mode === "paused") {
-      state.mode = "playing";
-      ui.pauseButton.textContent = "II";
-      startMusic();
-    }
+    if (state.mode === "playing") pauseGame();
+    else if (state.mode === "paused") resumeGame();
+  }
+
+  function returnToMenu() {
+    stopMusic();
+    resetRun(generateMap());
+    state.mode = "menu";
+    hideAllOverlays();
+    ui.startOverlay.classList.add("active");
+    ui.pauseButton.textContent = "II";
+    updateBestText();
   }
 
   function update(dt) {
@@ -154,7 +174,7 @@ export async function bootGame() {
 
   resizeCanvas(ui.canvas, ctx);
   window.addEventListener("resize", () => resizeCanvas(ui.canvas, ctx));
-  bindInput({ start, restart: start, togglePause });
+  bindInput({ start, restart: start, togglePause, resume: resumeGame, returnToMenu });
   resetRun(generateMap());
   state.mode = "menu";
   updateBestText();
