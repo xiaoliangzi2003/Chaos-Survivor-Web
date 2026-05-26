@@ -495,6 +495,7 @@ function fireProjectile(angle, w, opt) {
 
 function updateProjectiles(dt) {
   const half = WORLD_SIZE / 2 + 280;
+  const hits = [];
   for (let i = world.projectiles.length - 1; i >= 0; i--) {
     const b = world.projectiles[i];
     b.px = b.x;
@@ -514,7 +515,7 @@ function updateProjectiles(dt) {
       bladeBloom(b);
     }
 
-    const hits = [];
+    hits.length = 0;
     queryEnemies(b.x, b.y, b.r + 30, hits);
     for (const e of hits) {
       if (b.pierce <= 0 || b.hitIds.has(e)) continue;

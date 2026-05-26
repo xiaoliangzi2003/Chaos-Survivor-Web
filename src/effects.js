@@ -1,9 +1,9 @@
-import { PARTICLE_LIMIT, TAU } from "./constants.js";
+import { CAMERA_ZOOM, PARTICLE_LIMIT, TAU } from "./constants.js";
 import { state, world } from "./state.js";
 import { clamp, hexToRgba } from "./utils.js";
 
-const AMBIENT_LIMIT = 70;
-const AMBIENT_MAX_SPAWN = 3;
+const AMBIENT_LIMIT = 56;
+const AMBIENT_MAX_SPAWN = 2;
 let ambientTimer = 0;
 
 export function particle(kind, x, y, options = {}) {
@@ -70,7 +70,8 @@ export function updateAmbientParticles(dt, viewW, viewH) {
   ambientTimer -= dt;
   if (ambientTimer > 0) return;
   ambientTimer = 0.09 + Math.random() * 0.12;
-  const ambientCount = world.particles.reduce((sum, p) => sum + (p.ambient ? 1 : 0), 0);
+  let ambientCount = 0;
+  for (const p of world.particles) if (p.ambient) ambientCount++;
   if (ambientCount >= AMBIENT_LIMIT) return;
 
   const camX = state.cameraX - viewW / 2;
@@ -204,6 +205,10 @@ function spawnAmbientScan(x, y, angle, color) {
 }
 
 export function updateEffects(dt) {
+  const viewW = (window.innerWidth || 1280) / CAMERA_ZOOM;
+  const viewH = (window.innerHeight || 720) / CAMERA_ZOOM;
+  const maxDx = viewW * 0.75 + 520;
+  const maxDy = viewH * 0.75 + 520;
   for (let i = world.particles.length - 1; i >= 0; i--) {
     const p = world.particles[i];
     if (p.drift) {
@@ -214,12 +219,17 @@ export function updateEffects(dt) {
     p.y += p.vy * dt;
     p.life -= dt;
     p.t += dt;
-    if (p.life <= 0) world.particles.splice(i, 1);
+    if (p.life <= 0 || (p.ambient && (Math.abs(p.x - state.cameraX) > maxDx || Math.abs(p.y - state.cameraY) > maxDy))) world.particles.splice(i, 1);
   }
 }
 
 export function drawEffects(ctx) {
+  const viewW = (window.innerWidth || 1280) / CAMERA_ZOOM;
+  const viewH = (window.innerHeight || 720) / CAMERA_ZOOM;
+  const maxDx = viewW * 0.65 + 180;
+  const maxDy = viewH * 0.65 + 180;
   for (const p of world.particles) {
+    if (Math.abs(p.x - state.cameraX) > maxDx || Math.abs(p.y - state.cameraY) > maxDy) continue;
     const alpha = clamp(p.life / p.maxLife, 0, 1);
     if (p.kind === "ring") {
       ctx.strokeStyle = hexToRgba(p.color, alpha * 0.75);
@@ -285,8 +295,8 @@ function drawMist(ctx, p, alpha) {
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(p.angle + wobble);
-  drawMistBlob(ctx, 0, 0, p.size * 1.55, p.size * 0.66, p.color, a * 0.34);
-  for (let i = 0; i < 3; i++) {
+  drawMistBlob(ctx, 0, 0, p.size * 1.45, p.size * 0.64, p.color, a * 0.34);
+  for (let i = 0; i < 2; i++) {
     const localSeed = p.seed + i * 2.37;
     const ox = Math.sin(localSeed + p.t * 0.18) * p.size * (0.34 + i * 0.035);
     const oy = Math.cos(localSeed * 1.31 + p.t * 0.14) * p.size * 0.22;

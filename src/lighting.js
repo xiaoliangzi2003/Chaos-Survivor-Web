@@ -2,11 +2,12 @@ import { CAMERA_ZOOM, TAU } from "./constants.js";
 import { state, world } from "./state.js";
 import { hexToRgba } from "./utils.js";
 
-const LIGHT_SCALE = 0.5;
-const MAX_PROJECTILE_LIGHTS = 90;
-const MAX_GEM_LIGHTS = 42;
-const MAX_MAP_LIGHTS = 80;
-const MAX_ENEMY_LIGHTS = 28;
+const LIGHT_SCALE = 0.45;
+const MAX_PROJECTILE_LIGHTS = 56;
+const MAX_GEM_LIGHTS = 24;
+const MAX_MAP_LIGHTS = 48;
+const MAX_ENEMY_LIGHTS = 18;
+const MAX_FX_LIGHTS = 18;
 
 let lightCanvas = null;
 let lightCtx = null;
@@ -213,10 +214,13 @@ function addGemLights(lights, camera, viewport) {
 }
 
 function addFxLights(lights, camera, viewport) {
+  let count = 0;
   for (const fx of world.weaponFx) {
+    if (count >= MAX_FX_LIGHTS) break;
     const k = Math.max(0, fx.life / fx.maxLife);
     if (fx.kind === "arc") {
       for (const seg of fx.segments) {
+        if (count >= MAX_FX_LIGHTS) break;
         addWorldLight(lights, camera, viewport, {
           x: seg.x2,
           y: seg.y2,
@@ -225,6 +229,7 @@ function addFxLights(lights, camera, viewport) {
           strength: 0.42 * k,
           core: 0.14,
         });
+        count++;
       }
     } else if (fx.x !== undefined && worldVisible(fx.x, fx.y, fx.radius || 160, camera)) {
       addWorldLight(lights, camera, viewport, {
@@ -235,6 +240,7 @@ function addFxLights(lights, camera, viewport) {
         strength: fx.kind === "explosion" ? 0.75 * k : 0.36 * k,
         core: 0.18,
       });
+      count++;
     }
   }
 }
@@ -267,6 +273,7 @@ function carveLight(ctx, light) {
 }
 
 function tintLight(ctx, light) {
+  if (light.strength < 0.16) return;
   const g = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, light.radius * 1.05);
   g.addColorStop(0, hexToRgba(light.color, light.strength * 0.24));
   g.addColorStop(0.55, hexToRgba(light.color, light.strength * 0.08));

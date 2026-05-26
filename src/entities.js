@@ -164,11 +164,32 @@ export function queryEnemies(x, y, radius, out) {
 export function nearestEnemy(x, y, range = 900) {
   let best = null;
   let bestD = range * range;
-  for (const e of world.enemies) {
-    const d = distSq(x, y, e.x, e.y);
-    if (d < bestD) {
-      bestD = d;
-      best = e;
+  const minX = Math.floor((x - range) / CELL_SIZE);
+  const maxX = Math.floor((x + range) / CELL_SIZE);
+  const minY = Math.floor((y - range) / CELL_SIZE);
+  const maxY = Math.floor((y + range) / CELL_SIZE);
+  for (let gy = minY; gy <= maxY; gy++) {
+    for (let gx = minX; gx <= maxX; gx++) {
+      const bucket = world.grid.get(`${gx},${gy}`);
+      if (!bucket) continue;
+      for (const e of bucket) {
+        if (e.dead) continue;
+        const d = distSq(x, y, e.x, e.y);
+        if (d < bestD) {
+          bestD = d;
+          best = e;
+        }
+      }
+    }
+  }
+  if (!best && world.grid.size === 0) {
+    for (const e of world.enemies) {
+      if (e.dead) continue;
+      const d = distSq(x, y, e.x, e.y);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
     }
   }
   return best;

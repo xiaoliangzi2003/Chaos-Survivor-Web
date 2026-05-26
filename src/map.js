@@ -649,13 +649,13 @@ function drawFogBank(ctx, fog, time) {
   ctx.translate(fog.x + Math.sin(time * 0.18 + fog.phase) * 22, fog.y + Math.cos(time * 0.13 + fog.phase) * 18);
   ctx.rotate(Math.sin(fog.phase) * 0.32);
   ctx.globalCompositeOperation = "screen";
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     const a = fog.phase + i * 1.73;
     const drift = Math.sin(time * (0.11 + i * 0.025) + a);
     const ox = Math.cos(a) * fog.rx * (0.08 + i * 0.025) + drift * 18;
     const oy = Math.sin(a * 1.4) * fog.ry * 0.22 + Math.cos(time * 0.09 + a) * 12;
-    const rx = fog.rx * (0.34 + i * 0.075);
-    const ry = fog.ry * (0.28 + (4 - i) * 0.045);
+    const rx = fog.rx * (0.38 + i * 0.095);
+    const ry = fog.ry * (0.34 + (2 - i) * 0.06);
     const alpha = fog.alpha * (0.42 - i * 0.04);
     const grad = ctx.createRadialGradient(ox, oy, 2, ox, oy, Math.max(rx, ry));
     grad.addColorStop(0, hexToRgba(fog.color, alpha));
