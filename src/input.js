@@ -2,34 +2,53 @@ import { input, state } from "./state.js";
 import { ui } from "./ui.js";
 import { setMuted, isMuted, nextMusicTrack } from "./audio.js";
 
-export function bindInput({ start, restart, togglePause, resume, returnToMenu }) {
-  const keys = new Map([["KeyW", "up"], ["ArrowUp", "up"], ["KeyS", "down"], ["ArrowDown", "down"], ["KeyA", "left"], ["ArrowLeft", "left"], ["KeyD", "right"], ["ArrowRight", "right"]]);
+export function bindInput({ start, restart, togglePause, toggleInventory, resume, returnToMenu }) {
+  const keys = new Map([
+    ["KeyW", "up"], ["ArrowUp", "up"],
+    ["KeyS", "down"], ["ArrowDown", "down"],
+    ["KeyA", "left"], ["ArrowLeft", "left"],
+    ["KeyD", "right"], ["ArrowRight", "right"],
+  ]);
+
   window.addEventListener("keydown", (event) => {
     const action = keys.get(event.code);
-    if (action) { input[action] = true; event.preventDefault(); }
+    if (action) {
+      input[action] = true;
+      event.preventDefault();
+    }
     if (event.code === "KeyP" || event.code === "Escape") togglePause();
+    if (event.code === "KeyE") toggleInventory();
     if (event.code === "KeyM") nextMusicTrack();
     if (event.code === "Space" && state.mode === "menu") start();
   });
+
   window.addEventListener("keyup", (event) => {
     const action = keys.get(event.code);
-    if (action) { input[action] = false; event.preventDefault(); }
+    if (action) {
+      input[action] = false;
+      event.preventDefault();
+    }
   });
+
   ui.canvas.addEventListener("pointerdown", (event) => {
-    if (state.mode === "menu") return;
+    if (state.mode === "menu" || state.mode === "inventory") return;
     input.pointerId = event.pointerId;
     setStick(event);
     ui.canvas.setPointerCapture(event.pointerId);
   });
-  ui.canvas.addEventListener("pointermove", (event) => { if (event.pointerId === input.pointerId) setStick(event); });
+  ui.canvas.addEventListener("pointermove", (event) => {
+    if (event.pointerId === input.pointerId) setStick(event);
+  });
   ui.canvas.addEventListener("pointerup", clearStick);
   ui.canvas.addEventListener("pointercancel", clearStick);
+
   ui.startButton.addEventListener("click", start);
   ui.restartButton.addEventListener("click", restart);
   ui.pauseRestartButton.addEventListener("click", restart);
   ui.resumeButton.addEventListener("click", resume);
   ui.menuButton.addEventListener("click", returnToMenu);
   ui.pauseButton.addEventListener("click", togglePause);
+  ui.inventoryCloseButton.addEventListener("click", toggleInventory);
   ui.muteButton.addEventListener("click", () => {
     setMuted(!isMuted());
     ui.muteButton.textContent = isMuted() ? "×" : "♪";

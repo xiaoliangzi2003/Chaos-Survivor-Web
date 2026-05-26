@@ -4,29 +4,24 @@ import { angleDiff, circleHit, clamp, distSq } from "./utils.js";
 import { applyKnockback, damageEnemy, nearestEnemy, queryEnemies } from "./entities.js";
 import { burst, pulse, trail } from "./effects.js";
 import { playSfx } from "./audio.js";
+import { addWeaponToInventory, WEAPON_INFO } from "./inventory.js";
 
-export const STARTER_WEAPONS = [
-  { id: "arc", icon: "⚡", name: "棱镜电弧", desc: "自动锁定最近敌人，闪电会在附近目标间连续传导。" },
-  { id: "ice", icon: "❄", name: "霜晶追踪", desc: "追踪冰晶会持续转向追猎，命中后短暂冻结未死亡目标。" },
-  { id: "missile", icon: "◆", name: "核心飞弹", desc: "追踪飞弹命中后产生范围爆炸，适合清理密集怪群。" },
-  { id: "boomerang", icon: "✧", name: "霓虹回旋刃", desc: "远距离飞出后高速回收，往返切割同一路径上的敌人。" },
-  { id: "drone", icon: "◈", name: "星环无人机", desc: "无人机会离身攻击，电量不足时返回玩家身边充电。" },
-];
+export const STARTER_WEAPONS = ["arc", "ice", "missile", "boomerang", "drone"].map((id) => ({ id, ...WEAPON_INFO[id] }));
 
 export const UPGRADE_DEFS = [
-  { id: "arc", icon: "⚡", name: "电弧增幅", desc: "棱镜电弧伤害提高，传导次数增加。", apply: () => { activateWeapon("arc"); const w = state.weapons.arc; w.damage += 6; w.chains = Math.min(7, w.chains + 1); w.cooldown = Math.max(0.34, w.cooldown * 0.88); } },
-  { id: "ice", icon: "❄", name: "霜晶折射", desc: "冰晶数量、伤害、冻结时间和转向能力提升。", apply: () => { activateWeapon("ice"); const w = state.weapons.ice; w.count = Math.min(4, w.count + 1); w.damage += 5; w.turnSpeed += 0.55; w.freezeDuration = Math.min(1.1, w.freezeDuration + 0.12); w.cooldown = Math.max(0.46, w.cooldown * 0.9); } },
-  { id: "missile", icon: "◆", name: "飞弹裂变", desc: "核心飞弹爆炸范围和爆炸伤害提高。", apply: () => { activateWeapon("missile"); const w = state.weapons.missile; w.damage += 7; w.explodeDamage += 8; w.explodeRadius += 12; w.cooldown = Math.max(0.92, w.cooldown * 0.9); } },
-  { id: "boomerang", icon: "✧", name: "回旋增幅", desc: "霓虹回旋刃数量、伤害和飞行距离提高。", apply: () => { activateWeapon("boomerang"); const w = state.weapons.boomerang; w.count = Math.min(4, w.count + 1); w.damage += 5; w.returnAfter = Math.min(0.9, w.returnAfter + 0.08); } },
-  { id: "drone", icon: "◈", name: "无人机编队", desc: "增加无人机数量，提高弹幕伤害和电池容量。", apply: () => { activateWeapon("drone"); const w = state.weapons.drone; w.count = Math.min(5, w.count + 1); w.bulletDamage += 3; w.batteryMax += 12; w.fireCooldown = Math.max(0.24, w.fireCooldown * 0.92); } },
-  { id: "pulse", icon: "◎", name: "脉冲新星", desc: "周期性范围爆发更强、更大。", apply: () => { activateWeapon("pulse"); const w = state.weapons.pulse; w.damage += 9; w.radius += 16; w.cooldown = Math.max(1.4, w.cooldown * 0.9); } },
-  { id: "speed", icon: "→", name: "相位步", desc: "移动速度提高，拾取半径扩大。", apply: () => { state.player.speed += 18; state.player.magnet += 10; } },
-  { id: "guard", icon: "▣", name: "晶盾增幅", desc: "最大生命提高，并立即恢复生命。", apply: () => { state.player.maxHp += 18; state.player.hp = Math.min(state.player.maxHp, state.player.hp + 42); } },
+  { id: "arc", icon: WEAPON_INFO.arc.icon, name: "电弧增幅", desc: "棱镜电弧伤害提高，传导次数增加。", apply: () => { if (!activateWeapon("arc")) return; const w = state.weapons.arc; w.damage += 6; w.chains = Math.min(7, w.chains + 1); w.cooldown = Math.max(0.34, w.cooldown * 0.88); } },
+  { id: "ice", icon: WEAPON_INFO.ice.icon, name: "霜晶折射", desc: "冰晶数量、伤害、冻结时间和转向能力提升。", apply: () => { if (!activateWeapon("ice")) return; const w = state.weapons.ice; w.count = Math.min(4, w.count + 1); w.damage += 5; w.turnSpeed += 0.55; w.freezeDuration = Math.min(1.1, w.freezeDuration + 0.12); w.cooldown = Math.max(0.46, w.cooldown * 0.9); } },
+  { id: "missile", icon: WEAPON_INFO.missile.icon, name: "飞弹裂变", desc: "核心飞弹爆炸范围和爆炸伤害提高。", apply: () => { if (!activateWeapon("missile")) return; const w = state.weapons.missile; w.damage += 7; w.explodeDamage += 8; w.explodeRadius += 12; w.cooldown = Math.max(0.92, w.cooldown * 0.9); } },
+  { id: "boomerang", icon: WEAPON_INFO.boomerang.icon, name: "回旋增幅", desc: "霓虹回旋刃数量、伤害和飞行距离提高。", apply: () => { if (!activateWeapon("boomerang")) return; const w = state.weapons.boomerang; w.count = Math.min(4, w.count + 1); w.damage += 5; w.returnAfter = Math.min(0.9, w.returnAfter + 0.08); } },
+  { id: "drone", icon: WEAPON_INFO.drone.icon, name: "无人机编队", desc: "增加无人机数量，提高弹幕伤害和电池容量。", apply: () => { if (!activateWeapon("drone")) return; const w = state.weapons.drone; w.count = Math.min(5, w.count + 1); w.bulletDamage += 3; w.batteryMax += 12; w.fireCooldown = Math.max(0.24, w.fireCooldown * 0.92); } },
+  { id: "pulse", icon: WEAPON_INFO.pulse.icon, name: "脉冲新星", desc: "周期性范围爆发更强、更大。", apply: () => { if (!activateWeapon("pulse")) return; const w = state.weapons.pulse; w.damage += 9; w.radius += 16; w.cooldown = Math.max(1.4, w.cooldown * 0.9); } },
+  { id: "speed", icon: "➜", name: "相位步", desc: "移动速度提高，拾取半径扩大。", apply: () => { state.player.speed += 18; state.player.magnet += 10; } },
+  { id: "guard", icon: "▰", name: "晶盾增幅", desc: "最大生命提高，并立即恢复生命。", apply: () => { state.player.maxHp += 18; state.player.hp = Math.min(state.player.maxHp, state.player.hp + 42); } },
   { id: "crit", icon: "✦", name: "裂解算法", desc: "所有武器伤害提高。", apply: () => { state.player.damageScale += 0.14; } },
 ];
 
 export function activateWeapon(id) {
-  if (state.weapons[id] && state.weapons[id].level <= 0) state.weapons[id].level = 1;
+  return Boolean(addWeaponToInventory(id));
 }
 
 export function updateWeapons(dt) {
@@ -40,6 +35,10 @@ export function updateWeapons(dt) {
   updateWeaponFx(dt);
 }
 
+function weaponPower(w, value) {
+  return value * (w.qualityMult || 1);
+}
+
 function updateArcWeapon(dt) {
   const w = state.weapons.arc;
   if (!tickWeapon(w, dt)) return;
@@ -51,7 +50,7 @@ function updateArcWeapon(dt) {
   const segments = [];
   let source = { x: p.x, y: p.y };
   let target = first;
-  let damage = w.damage;
+  let damage = weaponPower(w, w.damage);
 
   for (let i = 0; i < w.chains && target; i++) {
     visited.add(target);
@@ -240,12 +239,15 @@ function fireDroneBullet(x, y, angle, w) {
   if (world.projectiles.length >= PROJECTILE_LIMIT) return;
   const speed = w.bulletSpeed;
   world.projectiles.push({
-    x, y, px: x, py: y,
+    x,
+    y,
+    px: x,
+    py: y,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     speed,
     angle,
-    damage: w.bulletDamage,
+    damage: weaponPower(w, w.bulletDamage),
     pierce: 1,
     r: 4,
     life: 0.95,
@@ -274,7 +276,7 @@ function updatePulseWeapon(dt) {
   const hits = [];
   queryEnemies(state.player.x, state.player.y, w.radius, hits);
   for (const e of hits) {
-    damageEnemy(e, w.damage, e.x, e.y);
+    damageEnemy(e, weaponPower(w, w.damage), e.x, e.y);
     applyKnockback(e, e.x - state.player.x, e.y - state.player.y, 105);
   }
   pulse(state.player.x, state.player.y, w.radius, "#77ff8a", 0.34);
@@ -305,7 +307,7 @@ function fireProjectile(angle, w, opt) {
     vy: Math.sin(angle) * speed,
     speed,
     angle,
-    damage: w.damage,
+    damage: weaponPower(w, w.damage),
     pierce: opt.pierce,
     r: opt.radius,
     life: opt.life,
@@ -319,7 +321,7 @@ function fireProjectile(angle, w, opt) {
     returnSpeed: opt.returnSpeed || 1,
     returnTimer: 0,
     explodeRadius: opt.explodeRadius || 0,
-    explodeDamage: opt.explodeDamage || 0,
+    explodeDamage: weaponPower(w, opt.explodeDamage || 0),
     freezeDuration: opt.freezeDuration || 0,
     noLifeExpire: opt.noLifeExpire || false,
     knockback: opt.knockback || 80,

@@ -21,6 +21,7 @@ export const state = {
   map: null,
   player: null,
   weapons: null,
+  inventory: null,
 };
 
 export const world = {
@@ -67,12 +68,23 @@ export function createPlayer() {
 
 export function createWeapons() {
   return {
-    arc: { level: 0, timer: 0, cooldown: 0.72, damage: 20, range: 620, chainRange: 170, chains: 3, falloff: 0.78 },
-    ice: { level: 0, timer: 0.8, cooldown: 1.05, count: 1, damage: 16, speed: 430, turnSpeed: 5.2, freezeDuration: 0.45 },
-    missile: { level: 0, timer: 1.2, cooldown: 1.75, damage: 26, speed: 360, explodeRadius: 96, explodeDamage: 24, turnSpeed: 2.5 },
-    boomerang: { level: 0, timer: 1.4, cooldown: 1.9, count: 1, damage: 20, speed: 520, returnAfter: 0.52, returnSpeed: 1.25 },
-    drone: { level: 0, angle: 0, count: 2, orbitRadius: 78, acquireRange: 560, attackRange: 420, fireCooldown: 0.42, bulletDamage: 9, bulletSpeed: 520, batteryMax: 100, shotCost: 22, rechargeRate: 34, drones: [] },
-    pulse: { level: 0, timer: 2.4, cooldown: 3.4, damage: 24, radius: 102 },
+    arc: { level: 0, timer: 0, cooldown: 0.72, damage: 20, range: 620, chainRange: 170, chains: 3, falloff: 0.78, quality: "common", qualityMult: 1 },
+    ice: { level: 0, timer: 0.8, cooldown: 1.05, count: 1, damage: 16, speed: 430, turnSpeed: 5.2, freezeDuration: 0.45, quality: "common", qualityMult: 1 },
+    missile: { level: 0, timer: 1.2, cooldown: 1.75, damage: 26, speed: 360, explodeRadius: 96, explodeDamage: 24, turnSpeed: 2.5, quality: "common", qualityMult: 1 },
+    boomerang: { level: 0, timer: 1.4, cooldown: 1.9, count: 1, damage: 20, speed: 520, returnAfter: 0.52, returnSpeed: 1.25, quality: "common", qualityMult: 1 },
+    drone: { level: 0, angle: 0, count: 2, orbitRadius: 78, acquireRange: 560, attackRange: 420, fireCooldown: 0.42, bulletDamage: 9, bulletSpeed: 520, batteryMax: 100, shotCost: 22, rechargeRate: 34, drones: [], quality: "common", qualityMult: 1 },
+    pulse: { level: 0, timer: 2.4, cooldown: 3.4, damage: 24, radius: 102, quality: "common", qualityMult: 1 },
+  };
+}
+
+export function createInventory() {
+  return {
+    selectedWeaponUid: null,
+    weaponSlots: [],
+    items: [
+      { id: "shard_core", name: "晶核碎片", icon: "◆", qty: 0, desc: "击败敌人与拾取经验时获得的通用强化材料。" },
+    ],
+    nextUid: 1,
   };
 }
 
@@ -107,4 +119,5 @@ export function resetRun(map) {
   state.map = map;
   state.player = createPlayer();
   state.weapons = createWeapons();
+  state.inventory = createInventory();
 }

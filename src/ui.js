@@ -1,6 +1,16 @@
 import { SAVE_KEY, TOTAL_WAVES } from "./constants.js";
 import { state } from "./state.js";
 import { choice, formatTime } from "./utils.js";
+import {
+  findFuseCandidate,
+  fuseWeaponSlots,
+  QUALITY_INFO,
+  selectWeaponSlot,
+  selectedWeaponSlot,
+  upgradeWeaponSlot,
+  weaponUpgradeCost,
+  WEAPON_INFO,
+} from "./inventory.js";
 import { startWeaponPreview } from "./weaponPreview.js";
 
 let stopPreview = null;
@@ -19,6 +29,7 @@ export const ui = {
   startOverlay: document.getElementById("startOverlay"),
   levelOverlay: document.getElementById("levelOverlay"),
   pauseOverlay: document.getElementById("pauseOverlay"),
+  inventoryOverlay: document.getElementById("inventoryOverlay"),
   endOverlay: document.getElementById("endOverlay"),
   levelEyebrow: document.querySelector("#levelOverlay .eyebrow"),
   levelTitle: document.querySelector("#levelOverlay h2"),
@@ -28,6 +39,13 @@ export const ui = {
   resumeButton: document.getElementById("resumeButton"),
   pauseRestartButton: document.getElementById("pauseRestartButton"),
   menuButton: document.getElementById("menuButton"),
+  inventoryCloseButton: document.getElementById("inventoryCloseButton"),
+  inventoryStats: document.getElementById("inventoryStats"),
+  weaponSlotList: document.getElementById("weaponSlotList"),
+  weaponDetail: document.getElementById("weaponDetail"),
+  weaponUpgradeButton: document.getElementById("weaponUpgradeButton"),
+  weaponFuseButton: document.getElementById("weaponFuseButton"),
+  itemList: document.getElementById("itemList"),
   pauseButton: document.getElementById("pauseButton"),
   muteButton: document.getElementById("muteButton"),
   bestText: document.getElementById("bestText"),
@@ -114,7 +132,7 @@ export function showWeaponCarousel({ eyebrow, title, items, onPick }) {
     name.textContent = `${item.icon} ${item.name}`;
     desc.textContent = item.desc;
     tags.innerHTML = "";
-    weaponTags(item.id).forEach((text) => {
+    (WEAPON_INFO[item.id]?.tags || []).forEach((text) => {
       const tag = document.createElement("span");
       tag.textContent = text;
       tags.appendChild(tag);
@@ -140,6 +158,22 @@ export function hideChoices() {
   ui.levelOverlay.classList.remove("active");
 }
 
+export function showInventory() {
+  renderInventory();
+  ui.inventoryOverlay.classList.add("active");
+}
+
+export function hideInventory() {
+  ui.inventoryOverlay.classList.remove("active");
+}
+
+export function renderInventory() {
+  renderInventoryStats();
+  renderWeaponSlots();
+  renderWeaponDetail();
+  renderItems();
+}
+
 export function showPauseMenu() {
   ui.pauseOverlay.classList.add("active");
 }
@@ -153,6 +187,7 @@ export function hideAllOverlays() {
   ui.startOverlay.classList.remove("active");
   ui.levelOverlay.classList.remove("active");
   ui.pauseOverlay.classList.remove("active");
+  ui.inventoryOverlay.classList.remove("active");
   ui.endOverlay.classList.remove("active");
 }
 
@@ -174,15 +209,98 @@ export function showEnd(victory) {
   updateBestText();
 }
 
-function weaponTags(id) {
-  const tags = {
-    arc: ["自动锁定", "连锁传导", "即时命中"],
-    ice: ["追踪", "冻结控制", "单体压制"],
-    missile: ["追踪", "范围爆炸", "群体清理"],
-    boomerang: ["远距离", "往返切割", "高穿透"],
-    drone: ["自动炮台", "离身攻击", "持续输出"],
+function renderInventoryStats() {
+  const p = state.player;
+  ui.inventoryStats.innerHTML = "";
+  [
+    ["生命", `${Math.ceil(p.hp)} / ${p.maxHp}`],
+    ["等级", `Lv.${p.level}`],
+    ["经验", `${Math.floor(p.xp)} / ${p.xpNeed}`],
+    ["移动速度", Math.round(p.speed)],
+    ["拾取半径", Math.round(p.magnet)],
+    ["伤害倍率", `${Math.round(p.damageScale * 100)}%`],
+    ["碎片", state.shards],
+  ].forEach(([label, value]) => {
+    const row = document.createElement("span");
+    row.innerHTML = `<b>${label}</b><strong>${value}</strong>`;
+    ui.inventoryStats.appendChild(row);
+  });
+}
+
+function renderWeaponSlots() {
+  const slots = state.inventory.weaponSlots;
+  ui.weaponSlotList.innerHTML = "";
+  const titleCount = document.querySelector(".inventory-weapons h3 span");
+  if (titleCount) titleCount.textContent = `${slots.length}/6`;
+  for (let i = 0; i < 6; i++) {
+    const slot = slots[i];
+    const button = document.createElement("button");
+    button.type = "button";
+    if (!slot) {
+      button.className = "weapon-slot empty";
+      button.textContent = "空槽位";
+    } else {
+      const info = WEAPON_INFO[slot.id];
+      const quality = QUALITY_INFO[slot.quality];
+      button.className = `weapon-slot${state.inventory.selectedWeaponUid === slot.uid ? " active" : ""}`;
+      button.innerHTML = `<i style="color:${quality.color}">${info.icon}</i><strong>${info.name}</strong><small style="color:${quality.color}">${quality.name} · Lv.${slot.level}</small>`;
+      button.addEventListener("click", () => {
+        selectWeaponSlot(slot.uid);
+        renderInventory();
+      });
+    }
+    ui.weaponSlotList.appendChild(button);
+  }
+}
+
+function renderWeaponDetail() {
+  const slot = selectedWeaponSlot();
+  ui.weaponDetail.innerHTML = "";
+  if (!slot) {
+    ui.weaponDetail.textContent = "当前没有武器。";
+    ui.weaponUpgradeButton.disabled = true;
+    ui.weaponFuseButton.disabled = true;
+    return;
+  }
+  const info = WEAPON_INFO[slot.id];
+  const quality = QUALITY_INFO[slot.quality];
+  const cost = weaponUpgradeCost(slot);
+  const candidate = findFuseCandidate(slot);
+  ui.weaponDetail.innerHTML = `
+    <div class="weapon-detail-card">
+      <div class="weapon-detail-title">
+        <i class="weapon-detail-icon" style="color:${quality.color}">${info.icon}</i>
+        <div>
+          <strong>${info.name}</strong>
+          <div class="quality-chip" style="color:${quality.color}">${quality.name} · Lv.${slot.level}</div>
+        </div>
+      </div>
+      <p>${info.desc}</p>
+      <div class="weapon-tags detail-tags">${info.tags.map((tag) => `<span>${tag}</span>`).join("")}</div>
+      <p>品质倍率：${Math.round(quality.mult * 100)}%</p>
+      <p>升级消耗：${cost} 碎片</p>
+      <p>合成规则：两把相同品质武器可合成为下一品质。</p>
+    </div>`;
+  ui.weaponUpgradeButton.disabled = state.shards < cost;
+  ui.weaponFuseButton.disabled = !candidate;
+  ui.weaponUpgradeButton.onclick = () => {
+    if (upgradeWeaponSlot(slot.uid)) renderInventory();
   };
-  return tags[id] || ["武器"];
+  ui.weaponFuseButton.onclick = () => {
+    const next = findFuseCandidate(slot);
+    if (next && fuseWeaponSlots(slot.uid, next.uid)) renderInventory();
+  };
+}
+
+function renderItems() {
+  ui.itemList.innerHTML = "";
+  for (const item of state.inventory.items) {
+    const row = document.createElement("div");
+    row.className = "item-card";
+    const qty = item.id === "shard_core" ? state.shards : item.qty;
+    row.innerHTML = `<span>${item.icon} ${item.name}</span><strong>x${qty}</strong><small>${item.desc}</small>`;
+    ui.itemList.appendChild(row);
+  }
 }
 
 function clearPreview() {

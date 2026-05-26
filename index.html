@@ -51,7 +51,7 @@
           <div class="stats-row">
             <span>WASD / 方向键移动</span>
             <span>自动攻击</span>
-            <span>P 暂停</span>
+            <span>E 背包 / P 暂停</span>
           </div>
           <button id="startButton" type="button" class="primary">开始生存</button>
           <p id="bestText" class="subtle">最佳纪录 00:00</p>
@@ -76,6 +76,40 @@
             <button id="menuButton" type="button">返回主菜单</button>
           </div>
           <p class="subtle">暂停期间游戏音乐会停止，返回游戏后继续播放。</p>
+        </div>
+      </section>
+
+      <section id="inventoryOverlay" class="overlay">
+        <div class="panel inventory-panel">
+          <div class="inventory-head">
+            <div>
+              <p class="eyebrow">INVENTORY</p>
+              <h2>背包</h2>
+            </div>
+            <button id="inventoryCloseButton" type="button" title="关闭背包">×</button>
+          </div>
+          <div class="inventory-layout">
+            <section class="inventory-stats">
+              <h3>玩家属性</h3>
+              <div id="inventoryStats" class="stat-grid"></div>
+            </section>
+            <section class="inventory-weapons">
+              <h3>武器槽 <span>0/6</span></h3>
+              <div id="weaponSlotList" class="weapon-slot-list"></div>
+            </section>
+            <section class="inventory-detail">
+              <h3>武器信息</h3>
+              <div id="weaponDetail" class="weapon-detail"></div>
+              <div class="inventory-actions">
+                <button id="weaponUpgradeButton" type="button" class="primary">升级武器</button>
+                <button id="weaponFuseButton" type="button">合成品质</button>
+              </div>
+            </section>
+            <section class="inventory-items">
+              <h3>所持道具</h3>
+              <div id="itemList" class="item-list"></div>
+            </section>
+          </div>
         </div>
       </section>
 

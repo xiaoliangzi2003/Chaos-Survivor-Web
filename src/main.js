@@ -1,6 +1,20 @@
 import { SAVE_KEY, TOTAL_WAVES, waveDurationFor } from "./constants.js";
 import { state, world, resetRun } from "./state.js";
-import { ui, updateHud, updateBestText, showChoices, showWeaponCarousel, hideChoices, showPauseMenu, hidePauseMenu, hideAllOverlays, pickThree, showEnd } from "./ui.js";
+import {
+  ui,
+  updateHud,
+  updateBestText,
+  showChoices,
+  showWeaponCarousel,
+  hideChoices,
+  showPauseMenu,
+  hidePauseMenu,
+  hideAllOverlays,
+  showInventory,
+  hideInventory,
+  pickThree,
+  showEnd,
+} from "./ui.js";
 import { generateMap } from "./map.js";
 import { bindInput } from "./input.js";
 import { isBossWave, setupEnemyRegistry } from "./enemyRegistry.js";
@@ -98,6 +112,7 @@ export async function bootGame() {
     const best = Number(localStorage.getItem(SAVE_KEY) || 0);
     if (state.time > best) localStorage.setItem(SAVE_KEY, String(Math.floor(state.time)));
     hidePauseMenu();
+    hideInventory();
     showEnd(victory);
     playSfx(victory ? "victory" : "defeat");
     stopMusic();
@@ -120,8 +135,29 @@ export async function bootGame() {
   }
 
   function togglePause() {
+    if (state.mode === "inventory") {
+      closeInventory();
+      return;
+    }
     if (state.mode === "playing") pauseGame();
     else if (state.mode === "paused") resumeGame();
+  }
+
+  function openInventory() {
+    if (state.mode !== "playing") return;
+    state.mode = "inventory";
+    showInventory();
+  }
+
+  function closeInventory() {
+    if (state.mode !== "inventory") return;
+    hideInventory();
+    state.mode = "playing";
+  }
+
+  function toggleInventory() {
+    if (state.mode === "inventory") closeInventory();
+    else openInventory();
   }
 
   function returnToMenu() {
@@ -174,7 +210,7 @@ export async function bootGame() {
 
   resizeCanvas(ui.canvas, ctx);
   window.addEventListener("resize", () => resizeCanvas(ui.canvas, ctx));
-  bindInput({ start, restart: start, togglePause, resume: resumeGame, returnToMenu });
+  bindInput({ start, restart: start, togglePause, toggleInventory, resume: resumeGame, returnToMenu });
   resetRun(generateMap());
   state.mode = "menu";
   updateBestText();
