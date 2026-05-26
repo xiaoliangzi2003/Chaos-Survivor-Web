@@ -707,6 +707,15 @@ h2 {
     var(--panel-strong);
 }
 
+.shop-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  gap: 14px;
+  max-height: calc(min(820px, 100vh - 28px) - 150px);
+  overflow: hidden;
+  padding: 16px 20px 14px;
+}
+
 .shop-head {
   display: flex;
   align-items: center;
@@ -746,18 +755,18 @@ h2 {
 
 .shop-offer-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  padding: 16px 20px 14px;
+  min-height: 0;
   overflow: auto;
-  max-height: 360px;
+  padding-right: 3px;
 }
 
 .shop-card {
   --quality: var(--cyan);
   display: grid;
   grid-template-rows: auto auto 1fr auto;
-  min-height: 300px;
+  min-height: 260px;
   border: 1px solid color-mix(in srgb, var(--quality) 48%, rgba(255, 255, 255, 0.1));
   border-radius: 6px;
   padding: 13px;
@@ -869,9 +878,12 @@ h2 {
 
 .shop-inventory-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+  grid-template-columns: 1fr;
+  align-content: start;
   gap: 12px;
-  padding: 0 20px 14px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 3px;
 }
 
 .shop-inventory-section {
@@ -897,7 +909,7 @@ h2 {
 }
 
 .shop-weapon-slots {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .shop-slot-row {
@@ -1485,7 +1497,6 @@ h2 {
 
   .shop-offer-list {
     grid-template-columns: 1fr;
-    max-height: 280px;
   }
 
   .shop-card {
@@ -1496,8 +1507,15 @@ h2 {
     grid-template-columns: 1fr;
   }
 
+  .shop-main {
+    grid-template-columns: 1fr;
+    max-height: calc(100vh - 205px);
+    overflow: auto;
+  }
+
   .shop-inventory-panel {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .shop-weapon-slots {
