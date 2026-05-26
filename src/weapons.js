@@ -513,7 +513,7 @@ function updateProjectiles(dt) {
     queryEnemies(b.x, b.y, b.r + 30, hits);
     for (const e of hits) {
       if (b.pierce <= 0 || b.hitIds.has(e)) continue;
-      if (!circleHit(b.x, b.y, b.r, e.x, e.y, e.r)) continue;
+      if (e.hitTest ? !e.hitTest(b.x, b.y, b.r) : !circleHit(b.x, b.y, b.r, e.x, e.y, e.r)) continue;
       b.hitIds.add(e);
       b.pierce--;
       damageEnemy(e, b.damage, b.x, b.y);

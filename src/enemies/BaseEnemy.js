@@ -137,7 +137,7 @@ export class BaseEnemy {
 
   bossMove(dt, dx, dy, d) {
     this.phase += dt;
-    this.chase(dt, dx, dy, d, this.behavior === "boss_snake" ? 1.1 : 0.55);
+    this.chase(dt, dx, dy, d, 0.55);
     if (this.cooldown <= 0) {
       this.cooldown = this.behavior === "boss_crystal" ? 1.0 : 1.45;
       const count = this.behavior === "boss_crystal" ? 18 : 10;

@@ -31,7 +31,7 @@ import { EliteSentinel } from "./enemies/elite_sentinel.js";
 import { EliteMissileSniper } from "./enemies/elite_missile_sniper.js";
 import { StormTyrant } from "./enemies/storm_tyrant.js";
 import { VoidColossus } from "./enemies/void_colossus.js";
-import { GeometricDevourer } from "./enemies/geometric_devourer.js";
+import { StormRailDevourer } from "./enemies/storm_rail_devourer.js";
 import { DarkCrystalRift } from "./enemies/dark_crystal_rift.js";
 
 const classes = {
@@ -64,7 +64,7 @@ const classes = {
   elite_missile_sniper: EliteMissileSniper,
   storm_tyrant: StormTyrant,
   void_colossus: VoidColossus,
-  geometric_devourer: GeometricDevourer,
+  storm_rail_devourer: StormRailDevourer,
   dark_crystal_rift: DarkCrystalRift,
 };
 

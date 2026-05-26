@@ -172,6 +172,9 @@ export function queryEnemies(x, y, radius, out) {
       for (const e of bucket) if (!e.dead && distSq(x, y, e.x, e.y) <= (radius + e.r) ** 2) out.push(e);
     }
   }
+  for (const e of world.enemies) {
+    if (!e.dead && e.hitTest && !out.includes(e) && e.hitTest(x, y, radius)) out.push(e);
+  }
 }
 
 export function nearestEnemy(x, y, range = 900) {
