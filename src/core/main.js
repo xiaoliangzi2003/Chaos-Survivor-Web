@@ -37,6 +37,8 @@ export async function bootGame() {
   await setupDifficultyConfig();
   loadDifficultyProgress();
   await setupEnemyRegistry();
+  const MAX_FRAME_RATE = 60;
+  const FRAME_MS = 1000 / MAX_FRAME_RATE;
   let lastTime = 0;
   let fps = 60;
   let fpsAcc = 0;
@@ -228,8 +230,14 @@ export async function bootGame() {
   }
 
   function loop(now) {
-    const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
-    lastTime = now;
+    if (!lastTime) lastTime = now - FRAME_MS;
+    const elapsed = now - lastTime;
+    if (elapsed < FRAME_MS - 0.5) {
+      requestAnimationFrame(loop);
+      return;
+    }
+    const dt = Math.min(0.033, elapsed / 1000 || 1 / MAX_FRAME_RATE);
+    lastTime = now - (elapsed % FRAME_MS);
     fpsAcc += dt;
     fpsFrames++;
     if (fpsAcc >= 0.5) {

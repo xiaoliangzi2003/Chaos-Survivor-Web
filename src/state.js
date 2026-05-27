@@ -54,6 +54,10 @@ export const input = {
   pointerId: null,
 };
 
+export function addCameraShake(amount, cap = 18) {
+  state.shake = Math.min(cap, Math.max(state.shake, amount));
+}
+
 export function createPlayer() {
   return {
     x: 0,

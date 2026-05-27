@@ -2,7 +2,7 @@ import { WORLD_SIZE, TAU, ENEMY_LIMIT } from "../constants.js";
 import { state, world } from "../state.js";
 import { clamp } from "../utils.js";
 import { setSpawnConfigured } from "../enemies/BaseEnemy.js";
-import { currentDifficulty } from "../difficulty.js";
+import { currentDifficulty, difficultyOrder } from "../difficulty.js";
 import { Zombie } from "../enemies/zombie.js";
 import { Lancer } from "../enemies/lancer.js";
 import { Wisp } from "../enemies/wisp.js";
@@ -96,7 +96,7 @@ export function spawnEnemyById(id, x = null, y = null) {
 }
 
 export function spawnWaveBoss() {
-  const boss = Object.values(enemyConfig).find((entry) => entry.bossWave === state.wave);
+  const boss = Object.values(enemyConfig).find((entry) => entry.boss && isEnemyAvailableFor(entry, state.wave));
   state.spawnedBossWaves ||= new Set();
   if (boss && !world.boss && !state.spawnedBossWaves.has(state.wave)) {
     const spawned = spawnEnemyById(boss.id);
@@ -105,12 +105,12 @@ export function spawnWaveBoss() {
 }
 
 export function isBossWave(wave) {
-  return Object.values(enemyConfig).some((entry) => entry.bossWave === wave);
+  return Object.values(enemyConfig).some((entry) => entry.boss && isEnemyAvailableFor(entry, wave));
 }
 
 export function availableEnemyIdsForWave(wave) {
   return Object.values(enemyConfig)
-    .filter((entry) => !entry.boss && entry.waves && wave >= entry.waves[0] && wave <= entry.waves[1])
+    .filter((entry) => !entry.boss && isEnemyAvailableFor(entry, wave))
     .map((entry) => entry.id);
 }
 
@@ -128,4 +128,45 @@ function randomSpawnPosition(radius) {
     x: clamp(p.x + Math.cos(angle) * dist, -half + radius, half - radius),
     y: clamp(p.y + Math.sin(angle) * dist, -half + radius, half - radius),
   };
+}
+
+function isEnemyAvailableFor(entry, wave, difficultyId = state.difficultyId || currentDifficulty()?.id) {
+  return isWaveAllowed(entry, wave) && isDifficultyAllowed(entry, difficultyId);
+}
+
+function isWaveAllowed(entry, wave) {
+  const waveRules = entry.boss
+    ? [entry.bossWave, entry.bossWaves, entry.bossWaveRanges, entry.waves, entry.waveRanges, entry.spawnWaves]
+    : [entry.waves, entry.waveRanges, entry.spawnWaves];
+  const hasRule = waveRules.some((rule) => rule != null);
+  const allowed = hasRule ? waveRules.some((rule) => matchesWaveRule(rule, wave)) : !entry.boss;
+  if (!allowed) return false;
+  return !matchesWaveRule(entry.excludeWaves, wave);
+}
+
+function matchesWaveRule(rule, wave) {
+  if (rule == null) return false;
+  if (typeof rule === "number") return wave === rule;
+  if (!Array.isArray(rule)) return false;
+  if (rule.length === 2 && rule.every((value) => typeof value === "number")) {
+    return wave >= rule[0] && wave <= rule[1];
+  }
+  return rule.some((item) => matchesWaveRule(item, wave));
+}
+
+function isDifficultyAllowed(entry, difficultyId) {
+  const include = entry.difficulties || entry.difficultyIds || entry.difficulty;
+  if (include && !toList(include).includes(difficultyId)) return false;
+  const exclude = entry.excludeDifficulties || entry.disabledDifficulties;
+  if (exclude && toList(exclude).includes(difficultyId)) return false;
+  const currentIndex = difficultyOrder.indexOf(difficultyId);
+  const minIndex = difficultyOrder.indexOf(entry.minDifficulty);
+  const maxIndex = difficultyOrder.indexOf(entry.maxDifficulty);
+  if (entry.minDifficulty && currentIndex >= 0 && minIndex >= 0 && currentIndex < minIndex) return false;
+  if (entry.maxDifficulty && currentIndex >= 0 && maxIndex >= 0 && currentIndex > maxIndex) return false;
+  return true;
+}
+
+function toList(value) {
+  return Array.isArray(value) ? value : [value];
 }

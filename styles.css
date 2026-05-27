@@ -17,8 +17,11 @@
   font-family: var(--font-pixel);
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  font-family: var(--font-pixel) !important;
 }
 
 html,
@@ -36,6 +39,13 @@ button {
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+
+input,
+textarea,
+select,
+canvas {
+  font-family: var(--font-pixel) !important;
 }
 
 #gameRoot {

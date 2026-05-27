@@ -1,5 +1,5 @@
 import { PROJECTILE_LIMIT, TAU, WORLD_SIZE } from "../constants.js";
-import { state, world } from "../state.js";
+import { addCameraShake, state, world } from "../state.js";
 import { angleDiff, circleHit, clamp, distSq } from "../utils.js";
 import { applyKnockback, damageEnemy, nearestEnemy, queryEnemies } from "./entities.js";
 import { burst, pulse, trail } from "../effects.js";
@@ -90,6 +90,7 @@ function updateArcWeapon(dt) {
     target = nextChainTarget(source, w.chainRange + weaponRangeBonus() * 0.35, visited);
   }
 
+  if (segments.length) addCameraShake(Math.min(3.2, 0.8 + segments.length * 0.35));
   if (rank >= 4 && segments.length) arcPrismBurst(source, damage * 0.52, color, visited);
   world.weaponFx.push({ kind: "arc", segments, life: 0.18, maxLife: 0.18, color });
   pulse(first.x, first.y, rank >= 3 ? 42 : 30, color, 0.12);
@@ -424,6 +425,7 @@ function fireDroneBeam(drone, target, w, color, legendary) {
   const damage = w.bulletDamage * (drone.qualityMult || w.qualityMult || 1) * (legendary ? 3.4 : 1.45);
   damageEnemy(target, damage, drone.x, drone.y);
   applyKnockback(target, target.x - drone.x, target.y - drone.y, legendary ? 180 : 95);
+  addCameraShake(legendary ? 3.4 : 1.4);
   const hits = [];
   queryEnemies(target.x, target.y, legendary ? 160 : 92, hits);
   let extra = 0;
@@ -458,6 +460,7 @@ function updatePulseWeapon(dt) {
     damageEnemy(e, weaponPower(w, w.damage), e.x, e.y);
     applyKnockback(e, e.x - state.player.x, e.y - state.player.y, 105);
   }
+  if (hits.length) addCameraShake(Math.min(5, 1.8 + hits.length * 0.2));
   if (rank >= 2) {
     const outer = [];
     queryEnemies(state.player.x, state.player.y, radius + 42, outer);
@@ -564,6 +567,7 @@ function updateProjectiles(dt) {
       b.pierce--;
       damageEnemy(e, b.damage, b.x, b.y);
       applyKnockback(e, b.vx, b.vy, b.knockback);
+      addProjectileHitShake(b);
       if (b.freezeDuration > 0 && !e.dead && !e.boss) e.freezeTimer = Math.max(e.freezeTimer || 0, b.freezeDuration);
       burst(b.x, b.y, b.shape === "ice" ? 12 : 8, b.color, b.shape === "missile" ? 220 : 170);
       world.weaponFx.push({ kind: b.shape === "ice" ? "iceHit" : "hit", x: b.x, y: b.y, life: 0.18, maxLife: 0.18, color: b.color });
@@ -625,6 +629,7 @@ function bladeBloom(b) {
     damageEnemy(e, b.damage * 0.36, b.x, b.y);
     applyKnockback(e, e.x - b.x, e.y - b.y, b.knockback * 0.65);
   }
+  if (hits.length) addCameraShake(2.2);
   world.weaponFx.push({ kind: "bladeBloom", x: b.x, y: b.y, radius, life: 0.24, maxLife: 0.24, color: b.color, spin: b.spin });
 }
 
@@ -648,6 +653,7 @@ function turnToward(b, target, dt, turnSpeed, speed) {
 }
 
 function explode(b) {
+  addCameraShake(Math.min(8, 3.5 + b.explodeRadius / 80));
   const hits = [];
   queryEnemies(b.x, b.y, b.explodeRadius, hits);
   for (const e of hits) {
@@ -689,6 +695,15 @@ function splitMissileBlast(b) {
     }
     world.weaponFx.push({ kind: "explosion", x, y, radius, life: 0.28, maxLife: 0.28, color: b.color, seed: Math.random() * 999 });
   }
+  if (b.splitOnHit) addCameraShake(3);
+}
+
+function addProjectileHitShake(b) {
+  if (b.shape === "droneBolt") return addCameraShake(0.8);
+  if (b.shape === "missile") return addCameraShake(4.5);
+  if (b.shape === "boomerang") return addCameraShake(1.8);
+  if (b.shape === "ice") return addCameraShake(1.2);
+  addCameraShake(1);
 }
 
 function spawnMicroMissiles(b) {
