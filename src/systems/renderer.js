@@ -1294,34 +1294,34 @@ function drawEmberMineHazard(ctx, h, alpha) {
 function drawBossBar(ctx) {
   const b = world.boss;
   if (!b || b.dead) return;
-  const w = Math.min(620, viewport.width - 48);
-  const x = (viewport.width - w) / 2;
-  const y = 86;
+  const w = viewport.width;
+  const x = 0;
+  const y = viewport.height - (b.shared?.members ? 38 : 28);
   if (b.shared?.members) {
     drawTwinBossBar(ctx, b, x, y, w);
     return;
   }
   const hpRatio = Math.max(0, b.hp / b.maxHp);
-  drawBossTitle(ctx, `${b.name} · ${b.trait}`, x, y - 30, w);
+  drawBossTitle(ctx, `${b.name} · ${b.trait}`, x, y - 18, w);
   ctx.fillStyle = "rgba(6,9,18,0.9)";
-  ctx.fillRect(x, y, w, 24);
+  ctx.fillRect(x, y, w, 28);
   ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.fillRect(x + 4, y + 4, w - 8, 16);
+  ctx.fillRect(x + 6, y + 5, w - 12, 18);
   const fill = ctx.createLinearGradient(x, y, x + w, y);
   fill.addColorStop(0, "#ff345f");
   fill.addColorStop(0.58, "#ff6b4a");
   fill.addColorStop(1, "#ffd166");
   ctx.fillStyle = fill;
-  ctx.fillRect(x + 4, y + 4, (w - 8) * hpRatio, 16);
+  ctx.fillRect(x + 6, y + 5, (w - 12) * hpRatio, 18);
   ctx.fillStyle = "rgba(255,255,255,0.28)";
-  ctx.fillRect(x + 4, y + 4, (w - 8) * hpRatio, 4);
+  ctx.fillRect(x + 6, y + 5, (w - 12) * hpRatio, 4);
   ctx.strokeStyle = "rgba(255,209,102,0.9)";
   ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, w, 24);
+  ctx.strokeRect(x + 1, y + 1, w - 2, 26);
   ctx.fillStyle = "#f3f7ff";
   ctx.font = `14px ${CANVAS_PIXEL_FONT}`;
   ctx.textAlign = "center";
-  ctx.fillText(`${Math.ceil(b.hp)} / ${Math.ceil(b.maxHp)}`, viewport.width / 2, y + 18);
+  ctx.fillText(`${Math.ceil(b.hp)} / ${Math.ceil(b.maxHp)}`, viewport.width / 2, y + 20);
 }
 
 function drawTwinBossBar(ctx, b, x, y, w) {
@@ -1329,44 +1329,46 @@ function drawTwinBossBar(ctx, b, x, y, w) {
   const crimson = members.find((e) => e.role === "crimson");
   const azure = members.find((e) => e.role === "azure");
   const tag = b.shared.resonance ? " · 双瞳共鸣" : b.enraged ? " · 单眼暴走" : "";
-  drawBossTitle(ctx, `裂渊双瞳${tag}`, x, y - 30, w);
+  drawBossTitle(ctx, `裂渊双瞳${tag}`, x, y - 18, w);
   ctx.fillStyle = "rgba(6,9,18,0.9)";
-  ctx.fillRect(x, y, w, 36);
+  ctx.fillRect(x, y, w, 38);
   ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.fillRect(x + 4, y + 5, w - 8, 11);
-  ctx.fillRect(x + 4, y + 21, w - 8, 11);
+  ctx.fillRect(x + 6, y + 6, w - 12, 11);
+  ctx.fillRect(x + 6, y + 22, w - 12, 11);
   if (crimson && !crimson.dead) {
     const crimsonFill = ctx.createLinearGradient(x, y, x + w, y);
     crimsonFill.addColorStop(0, "#ff345f");
     crimsonFill.addColorStop(1, "#ff9f6e");
     ctx.fillStyle = crimsonFill;
-    ctx.fillRect(x + 4, y + 5, (w - 8) * Math.max(0, crimson.hp / crimson.maxHp), 11);
+    ctx.fillRect(x + 6, y + 6, (w - 12) * Math.max(0, crimson.hp / crimson.maxHp), 11);
   }
   if (azure && !azure.dead) {
     const azureFill = ctx.createLinearGradient(x, y, x + w, y);
     azureFill.addColorStop(0, "#42e8ff");
     azureFill.addColorStop(1, "#b48cff");
     ctx.fillStyle = azureFill;
-    ctx.fillRect(x + 4, y + 21, (w - 8) * Math.max(0, azure.hp / azure.maxHp), 11);
+    ctx.fillRect(x + 6, y + 22, (w - 12) * Math.max(0, azure.hp / azure.maxHp), 11);
   }
   ctx.strokeStyle = b.shared.resonance ? "rgba(255,255,255,0.95)" : "rgba(255,209,102,0.85)";
   ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, w, 36);
+  ctx.strokeRect(x + 1, y + 1, w - 2, 36);
   ctx.fillStyle = "#f3f7ff";
   ctx.font = `12px ${CANVAS_PIXEL_FONT}`;
   ctx.textAlign = "center";
   const leftHp = crimson && !crimson.dead ? Math.ceil(crimson.hp) : 0;
   const rightHp = azure && !azure.dead ? Math.ceil(azure.hp) : 0;
-  ctx.fillText(`${leftHp} / ${rightHp}`, viewport.width / 2, y + 25);
+  ctx.fillText(`${leftHp} / ${rightHp}`, viewport.width / 2, y + 27);
 }
 
 function drawBossTitle(ctx, text, x, y, w) {
   ctx.save();
+  const labelWidth = Math.max(220, Math.min(w - 24, 560));
+  const labelX = (viewport.width - labelWidth) / 2;
   ctx.fillStyle = "rgba(6,9,18,0.82)";
-  ctx.fillRect(x + 34, y - 18, w - 68, 26);
+  ctx.fillRect(labelX, y - 18, labelWidth, 26);
   ctx.strokeStyle = "rgba(255,209,102,0.36)";
   ctx.lineWidth = 1;
-  ctx.strokeRect(x + 34, y - 18, w - 68, 26);
+  ctx.strokeRect(labelX, y - 18, labelWidth, 26);
   ctx.fillStyle = "#f3f7ff";
   ctx.font = `18px ${CANVAS_PIXEL_FONT}`;
   ctx.textAlign = "center";

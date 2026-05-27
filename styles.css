@@ -170,7 +170,10 @@ canvas {
 
 /* Upgraded combat HUD */
 .hud {
-  grid-template-columns: minmax(250px, 300px) minmax(132px, auto) minmax(300px, 1fr);
+  grid-template-columns: minmax(250px, 300px) 1fr;
+  grid-template-areas:
+    "vitals empty"
+    "chips empty";
   align-items: start;
 }
 
@@ -199,6 +202,7 @@ canvas {
 }
 
 .hud-left {
+  grid-area: vitals;
   width: auto;
   gap: 10px;
   padding: 12px;
@@ -294,38 +298,61 @@ canvas {
 }
 
 .hud-center {
-  min-width: 136px;
-  padding: 10px 16px;
-  border-color: rgba(255, 209, 102, 0.28);
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  text-align: center;
+  transform: translateX(-50%);
+  overflow: visible;
 }
 
 .hud-center strong {
   position: relative;
   z-index: 1;
-  color: var(--ink);
-  font-size: 26px;
+  color: #f8fbff;
+  font-size: clamp(30px, 4vw, 52px);
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 16px rgba(255, 209, 102, 0.32);
+  letter-spacing: 2px;
+  text-shadow:
+    0 0 6px rgba(255, 255, 255, 0.75),
+    0 0 18px rgba(66, 232, 255, 0.55),
+    0 0 32px rgba(255, 77, 109, 0.34);
 }
 
 .hud-center span {
   position: relative;
   z-index: 1;
-  color: rgba(243, 247, 255, 0.72);
+  color: #9ff4ff;
+  margin-top: 2px;
+  font-size: 14px;
   font-weight: 800;
+  letter-spacing: 4px;
+  text-shadow: 0 0 12px rgba(66, 232, 255, 0.5), 0 0 24px rgba(180, 140, 255, 0.32);
 }
 
 .hud-center.boss-active {
-  border-color: rgba(255, 77, 109, 0.55);
-  animation: bossBlink 900ms ease-in-out infinite;
+  animation: waveTextPulse 900ms ease-in-out infinite;
+}
+
+.hud-center::before {
+  display: none;
 }
 
 .hud-right {
-  justify-self: end;
+  grid-area: chips;
+  justify-self: stretch;
+  display: grid;
+  width: auto;
   max-width: none;
   padding: 8px;
   gap: 8px;
-  border-right: 3px solid rgba(255, 209, 102, 0.7);
+  border-left: 3px solid rgba(255, 209, 102, 0.7);
 }
 
 .hud-chip {
@@ -335,7 +362,7 @@ canvas {
   grid-template-columns: 24px auto;
   grid-template-rows: auto auto;
   align-items: center;
-  min-width: 78px;
+  min-width: 0;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 4px;
   padding: 6px 8px;
@@ -525,12 +552,23 @@ canvas {
   50% { box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.34), 0 0 30px rgba(255, 77, 109, 0.22); }
 }
 
+@keyframes waveTextPulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 77, 109, 0)); transform: translateX(-50%) scale(1); }
+  50% { filter: drop-shadow(0 0 14px rgba(255, 77, 109, 0.72)); transform: translateX(-50%) scale(1.04); }
+}
+
+@keyframes deniedShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
 .quick-actions {
   position: absolute;
   right: 12px;
   bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 6;
-  display: flex;
+  display: none;
   gap: 8px;
 }
 
@@ -679,6 +717,7 @@ h2 {
 }
 
 .level-up-overlay h2 {
+  padding-right: 190px;
   font-size: clamp(34px, 5vw, 58px);
   text-shadow: 0 0 20px rgba(66, 232, 255, 0.3);
 }
@@ -803,6 +842,43 @@ h2 {
   z-index: 1;
   color: rgba(243, 247, 255, 0.76);
   font-size: 12px;
+}
+
+.level-choice-actions {
+  position: absolute;
+  top: clamp(18px, 3vw, 28px);
+  right: clamp(18px, 3vw, 28px);
+  z-index: 4;
+}
+
+.level-refresh-button {
+  min-width: 148px;
+  min-height: 38px;
+  border: 1px solid rgba(255, 209, 102, 0.48);
+  border-radius: 5px;
+  padding: 0 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 209, 102, 0.18), rgba(66, 232, 255, 0.11)),
+    rgba(10, 16, 28, 0.82);
+  color: #f8fbff;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 18px rgba(255, 209, 102, 0.1);
+}
+
+.level-refresh-button:hover:not(:disabled) {
+  border-color: rgba(255, 209, 102, 0.82);
+  box-shadow: 0 0 22px rgba(255, 209, 102, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.level-refresh-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.level-refresh-button.denied {
+  animation: deniedShake 180ms ease-in-out;
 }
 
 .level-up-fx {
@@ -2009,10 +2085,10 @@ h2 {
 
 @media (max-width: 760px) {
   .hud {
-    grid-template-columns: minmax(210px, 1fr) auto;
+    grid-template-columns: minmax(210px, 300px) 1fr;
     grid-template-areas:
-      "center center"
-      "vitals chips";
+      "vitals empty"
+      "chips empty";
     align-items: start;
   }
 
@@ -2021,14 +2097,13 @@ h2 {
   }
 
   .hud-center {
-    grid-area: center;
-    justify-self: center;
+    justify-self: auto;
   }
 
   .hud-right {
     grid-area: chips;
-    justify-self: end;
-    max-width: 190px;
+    justify-self: stretch;
+    max-width: none;
     padding: 6px;
     gap: 6px;
   }
@@ -2054,12 +2129,23 @@ h2 {
     width: min(560px, calc(100vw - 18px));
   }
 
+  .level-up-overlay h2 {
+    padding-right: 0;
+  }
+
   .level-choice-list {
     grid-template-columns: 1fr;
   }
 
   .level-choice-card {
     min-height: 170px;
+  }
+
+  .level-choice-actions {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    margin: -8px 0 12px;
   }
 
   .difficulty-head {
@@ -2158,7 +2244,6 @@ h2 {
     gap: 8px;
     grid-template-columns: 1fr;
     grid-template-areas:
-      "center"
       "vitals"
       "chips";
   }
@@ -2177,12 +2262,10 @@ h2 {
 
   .hud-right {
     justify-self: stretch;
-    justify-content: space-between;
     max-width: none;
   }
 
   .hud-chip {
     min-width: 0;
-    flex: 1 1 30%;
   }
 }

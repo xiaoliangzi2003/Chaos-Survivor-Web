@@ -30,6 +30,8 @@ import { playSfx, startMusic, stopMusic, pauseMusic, resumeMusic } from "../audi
 import { CAMERA_ZOOM } from "../constants.js";
 import { loadDifficultyProgress, recordDifficultyVictory, selectDifficulty, setupDifficultyConfig } from "../difficulty.js";
 
+const LEVEL_CHOICE_REFRESH_COST = 10;
+
 export async function bootGame() {
   const ctx = ui.canvas.getContext("2d", { alpha: false });
   initInventoryUi();
@@ -88,10 +90,28 @@ export async function bootGame() {
 
   function showLevelChoices() {
     state.mode = "leveling";
+    renderLevelChoices(pickThree(UPGRADE_DEFS));
+  }
+
+  function renderLevelChoices(items) {
     showChoices({
       eyebrow: "LEVEL UP",
       title: "选择一次强化",
-      items: pickThree(UPGRADE_DEFS),
+      items,
+      refresh: {
+        label: `刷新选项 - ${LEVEL_CHOICE_REFRESH_COST} 金币`,
+        disabled: state.gold < LEVEL_CHOICE_REFRESH_COST,
+        onRefresh: () => {
+          if (state.gold < LEVEL_CHOICE_REFRESH_COST) {
+            playSfx("deny");
+            return false;
+          }
+          state.gold -= LEVEL_CHOICE_REFRESH_COST;
+          playSfx("select");
+          renderLevelChoices(pickThree(UPGRADE_DEFS));
+          return true;
+        },
+      },
       onPick: (item) => {
         item.apply();
         hideChoices();

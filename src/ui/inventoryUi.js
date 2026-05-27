@@ -24,7 +24,7 @@ const text = {
   xp: "\u7ecf\u9a8c",
   speed: "\u79fb\u52a8\u901f\u5ea6",
   magnet: "\u62fe\u53d6\u534a\u5f84",
-  damage: "\u4f24\u5bb3\u500d\u7387",
+  damage: "\u4f24\u5bb3\u503c",
   defense: "\u9632\u5fa1",
   dodge: "\u95ea\u907f",
   crit: "\u66b4\u51fb",
@@ -156,7 +156,7 @@ function renderStats() {
     [text.xp, `${Math.floor(p.xp)} / ${p.xpNeed}`],
     [text.speed, Math.round(p.speed)],
     [text.magnet, Math.round(p.magnet)],
-    [text.damage, `${Math.round(p.damageScale * 100)}%`],
+    [text.damage, actualDamageValue()],
     [text.defense, Math.round(p.defense || 0)],
     [text.dodge, `${Math.round((p.dodge || 0) * 100)}%`],
     [text.crit, `${Math.round((p.critChance || 0) * 100)}%`],
@@ -170,6 +170,20 @@ function renderStats() {
     row.innerHTML = `<b>${label}</b><strong>${value}</strong>`;
     dom.stats.appendChild(row);
   });
+}
+
+function actualDamageValue() {
+  const scale = state.player?.damageScale || 1;
+  const slots = state.inventory?.weaponSlots || [];
+  let best = 0;
+  for (const slot of slots) {
+    const weapon = state.weapons?.[slot.id];
+    if (!weapon) continue;
+    const base = weapon.damage ?? weapon.bulletDamage ?? weapon.explodeDamage ?? 0;
+    const qualityMult = QUALITY_INFO[slot.quality]?.mult || 1;
+    best = Math.max(best, base * qualityMult);
+  }
+  return Math.round(best * scale);
 }
 
 function renderSummary() {

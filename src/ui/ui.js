@@ -153,13 +153,14 @@ export function hideDifficultySelect() {
   ui.quickActions?.classList.remove("blocked");
 }
 
-export function showChoices({ eyebrow, title, items, onPick }) {
+export function showChoices({ eyebrow, title, items, onPick, refresh = null }) {
   clearPreview();
   ui.quickActions?.classList.add("blocked");
   const isLevelUp = eyebrow === "LEVEL UP";
   ui.levelEyebrow.textContent = eyebrow;
   ui.levelTitle.textContent = title;
   ui.choiceList.innerHTML = "";
+  ui.levelOverlay.querySelector(".level-choice-actions")?.remove();
   ui.choiceList.className = isLevelUp ? "choice-list level-choice-list" : "choice-list";
   ui.levelOverlay.classList.toggle("level-up-overlay", isLevelUp);
   if (isLevelUp) renderLevelUpFx();
@@ -184,6 +185,25 @@ export function showChoices({ eyebrow, title, items, onPick }) {
     }, { once: true });
     ui.choiceList.appendChild(button);
   }
+  if (isLevelUp && refresh) {
+    const actions = document.createElement("div");
+    actions.className = "level-choice-actions";
+    const refreshButton = document.createElement("button");
+    refreshButton.type = "button";
+    refreshButton.className = "level-refresh-button";
+    refreshButton.textContent = refresh.label;
+    refreshButton.disabled = Boolean(refresh.disabled);
+    refreshButton.addEventListener("click", () => {
+      const refreshed = refresh.onRefresh?.();
+      if (refreshed === false) {
+        refreshButton.classList.remove("denied");
+        void refreshButton.offsetWidth;
+        refreshButton.classList.add("denied");
+      }
+    });
+    actions.append(refreshButton);
+    ui.levelOverlay.querySelector(".choices")?.appendChild(actions);
+  }
   ui.levelOverlay.classList.add("active");
 }
 
@@ -193,6 +213,7 @@ export function showWeaponCarousel({ eyebrow, title, items, onPick }) {
   let index = 0;
   ui.levelOverlay.classList.remove("level-up-overlay");
   ui.levelOverlay.querySelector(".level-up-fx")?.remove();
+  ui.levelOverlay.querySelector(".level-choice-actions")?.remove();
   ui.levelEyebrow.textContent = eyebrow;
   ui.levelTitle.textContent = title;
   ui.choiceList.innerHTML = "";
@@ -271,6 +292,7 @@ export function hideChoices() {
   ui.levelOverlay.classList.remove("active");
   ui.levelOverlay.classList.remove("level-up-overlay");
   ui.levelOverlay.querySelector(".level-up-fx")?.remove();
+  ui.levelOverlay.querySelector(".level-choice-actions")?.remove();
   ui.quickActions?.classList.remove("blocked");
 }
 
@@ -339,13 +361,27 @@ function renderInventoryStats() {
     ["经验", `${Math.floor(p.xp)} / ${p.xpNeed}`],
     ["移动速度", Math.round(p.speed)],
     ["拾取半径", Math.round(p.magnet)],
-    ["伤害倍率", `${Math.round(p.damageScale * 100)}%`],
+    ["伤害值", actualDamageValue()],
     ["金币", state.gold],
   ].forEach(([label, value]) => {
     const row = document.createElement("span");
     row.innerHTML = `<b>${label}</b><strong>${value}</strong>`;
     ui.inventoryStats.appendChild(row);
   });
+}
+
+function actualDamageValue() {
+  const scale = state.player?.damageScale || 1;
+  const slots = state.inventory?.weaponSlots || [];
+  let best = 0;
+  for (const slot of slots) {
+    const weapon = state.weapons?.[slot.id];
+    if (!weapon) continue;
+    const base = weapon.damage ?? weapon.bulletDamage ?? weapon.explodeDamage ?? 0;
+    const qualityMult = QUALITY_INFO[slot.quality]?.mult || 1;
+    best = Math.max(best, base * qualityMult);
+  }
+  return Math.round(best * scale);
 }
 
 function renderWeaponSlots() {
