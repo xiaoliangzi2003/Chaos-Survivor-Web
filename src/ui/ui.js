@@ -156,16 +156,32 @@ export function hideDifficultySelect() {
 export function showChoices({ eyebrow, title, items, onPick }) {
   clearPreview();
   ui.quickActions?.classList.add("blocked");
+  const isLevelUp = eyebrow === "LEVEL UP";
   ui.levelEyebrow.textContent = eyebrow;
   ui.levelTitle.textContent = title;
   ui.choiceList.innerHTML = "";
-  ui.choiceList.className = "choice-list";
+  ui.choiceList.className = isLevelUp ? "choice-list level-choice-list" : "choice-list";
+  ui.levelOverlay.classList.toggle("level-up-overlay", isLevelUp);
+  if (isLevelUp) renderLevelUpFx();
   for (const item of items) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "choice-card";
-    button.innerHTML = `<i>${item.icon}</i><strong>${item.name}</strong><p>${item.desc}</p>`;
-    button.addEventListener("click", () => onPick(item), { once: true });
+    button.className = isLevelUp ? "choice-card level-choice-card" : "choice-card";
+    button.innerHTML = isLevelUp
+      ? `
+        <div class="upgrade-icon"><i>${item.icon}</i></div>
+        <div class="upgrade-copy">
+          <span>${item.stat || "强化"}</span>
+          <strong>${item.name}</strong>
+          <em>${item.amount || ""}</em>
+          <p>${item.desc}</p>
+        </div>
+        <b>选择</b>`
+      : `<i>${item.icon}</i><strong>${item.name}</strong><p>${item.desc}</p>`;
+    button.addEventListener("click", () => {
+      if (isLevelUp) playUpgradePickFx(item);
+      onPick(item);
+    }, { once: true });
     ui.choiceList.appendChild(button);
   }
   ui.levelOverlay.classList.add("active");
@@ -175,6 +191,8 @@ export function showWeaponCarousel({ eyebrow, title, items, onPick }) {
   clearPreview();
   ui.quickActions?.classList.add("blocked");
   let index = 0;
+  ui.levelOverlay.classList.remove("level-up-overlay");
+  ui.levelOverlay.querySelector(".level-up-fx")?.remove();
   ui.levelEyebrow.textContent = eyebrow;
   ui.levelTitle.textContent = title;
   ui.choiceList.innerHTML = "";
@@ -251,6 +269,8 @@ export function showWeaponCarousel({ eyebrow, title, items, onPick }) {
 export function hideChoices() {
   clearPreview();
   ui.levelOverlay.classList.remove("active");
+  ui.levelOverlay.classList.remove("level-up-overlay");
+  ui.levelOverlay.querySelector(".level-up-fx")?.remove();
   ui.quickActions?.classList.remove("blocked");
 }
 
@@ -283,6 +303,8 @@ export function hideAllOverlays() {
   ui.quickActions?.classList.remove("blocked");
   ui.startOverlay.classList.remove("active");
   ui.levelOverlay.classList.remove("active");
+  ui.levelOverlay.classList.remove("level-up-overlay");
+  ui.levelOverlay.querySelector(".level-up-fx")?.remove();
   ui.difficultyOverlay?.classList.remove("active");
   ui.shopOverlay?.classList.remove("active");
   ui.pauseOverlay.classList.remove("active");
@@ -400,4 +422,31 @@ function clearPreview() {
     stopPreview();
     stopPreview = null;
   }
+}
+
+function renderLevelUpFx() {
+  ui.levelOverlay.querySelector(".level-up-fx")?.remove();
+  const fx = document.createElement("div");
+  fx.className = "level-up-fx";
+  fx.setAttribute("aria-hidden", "true");
+  fx.innerHTML = `
+    <span class="level-ring one"></span>
+    <span class="level-ring two"></span>
+    <span class="level-beam a"></span>
+    <span class="level-beam b"></span>
+    <span class="level-scan"></span>
+    <span class="level-sparks">${Array.from({ length: 18 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</span>`;
+  ui.levelOverlay.prepend(fx);
+}
+
+function playUpgradePickFx(item) {
+  const fx = document.createElement("div");
+  fx.className = "upgrade-pick-fx";
+  fx.setAttribute("aria-hidden", "true");
+  fx.innerHTML = `
+    <span>${item.icon || "*"}</span>
+    <strong>${item.name || "强化完成"}</strong>
+    <i></i><i></i><i></i><i></i>`;
+  document.body.appendChild(fx);
+  window.setTimeout(() => fx.remove(), 760);
 }

@@ -10,9 +10,141 @@ import { attackSpeedMultiplier, weaponProjectileBonus, weaponRangeBonus } from "
 export const STARTER_WEAPONS = ["arc", "ice", "missile", "boomerang", "drone"].map((id) => ({ id, ...WEAPON_INFO[id] }));
 
 export const UPGRADE_DEFS = [
-  { id: "speed", icon: "➜", name: "相位步", desc: "移动速度提高，拾取半径扩大。", apply: () => { state.player.speed += 18; state.player.magnet += 10; } },
-  { id: "guard", icon: "▰", name: "晶盾增幅", desc: "最大生命提高，并立即恢复生命。", apply: () => { state.player.maxHp += 18; state.player.hp = Math.min(state.player.maxHp, state.player.hp + 42); } },
-  { id: "crit", icon: "✦", name: "裂解算法", desc: "所有武器伤害提高。", apply: () => { state.player.damageScale += 0.14; } },
+  {
+    id: "vital_core",
+    icon: "H",
+    name: "生命核心",
+    stat: "生存",
+    amount: "+18 最大生命 / +42 治疗",
+    desc: "最大生命提高，并立即恢复一段生命。",
+    apply: () => {
+      state.player.maxHp += 18;
+      state.player.hp = Math.min(state.player.maxHp, state.player.hp + 42);
+    },
+  },
+  {
+    id: "regen_cell",
+    icon: "+",
+    name: "再生细胞",
+    stat: "恢复",
+    amount: "+0.7/s 回血",
+    desc: "获得稳定生命回复，适合长波次消耗战。",
+    apply: () => {
+      state.player.regen += 0.7;
+    },
+  },
+  {
+    id: "phase_stride",
+    icon: ">",
+    name: "相位步",
+    stat: "机动",
+    amount: "+18 移速 / +10 拾取",
+    desc: "移动速度提高，拾取半径小幅扩大。",
+    apply: () => {
+      state.player.speed += 18;
+      state.player.magnet += 10;
+    },
+  },
+  {
+    id: "magnet_field",
+    icon: "O",
+    name: "磁场扩容",
+    stat: "拾取",
+    amount: "+34 拾取半径",
+    desc: "显著扩大经验和金币的吸附范围。",
+    apply: () => {
+      state.player.magnet += 34;
+    },
+  },
+  {
+    id: "damage_matrix",
+    icon: "X",
+    name: "裂解矩阵",
+    stat: "伤害",
+    amount: "+12% 伤害",
+    desc: "所有武器基础伤害提高。",
+    apply: () => {
+      state.player.damageScale += 0.12;
+    },
+  },
+  {
+    id: "overclock",
+    icon: "R",
+    name: "超频扳机",
+    stat: "攻速",
+    amount: "+10% 攻击速度",
+    desc: "缩短所有武器冷却，让火力更密集。",
+    apply: () => {
+      state.player.attackSpeedBonus += 0.1;
+    },
+  },
+  {
+    id: "scope_lens",
+    icon: "L",
+    name: "远距透镜",
+    stat: "射程",
+    amount: "+72 攻击范围",
+    desc: "提升自动索敌和武器攻击范围。",
+    apply: () => {
+      state.player.attackRangeBonus += 72;
+    },
+  },
+  {
+    id: "crit_kernel",
+    icon: "*",
+    name: "暴击内核",
+    stat: "暴击",
+    amount: "+6% 暴击率",
+    desc: "提高所有武器造成暴击的概率。",
+    apply: () => {
+      state.player.critChance = clamp(state.player.critChance + 0.06, 0, 0.7);
+    },
+  },
+  {
+    id: "armor_plate",
+    icon: "#",
+    name: "装甲插板",
+    stat: "防御",
+    amount: "+5 防御",
+    desc: "降低受到的直接伤害。",
+    apply: () => {
+      state.player.defense += 5;
+    },
+  },
+  {
+    id: "evasion_ghost",
+    icon: "~",
+    name: "残影回避",
+    stat: "闪避",
+    amount: "+4% 闪避率",
+    desc: "提高完全躲开一次伤害的概率。",
+    apply: () => {
+      state.player.dodge = clamp(state.player.dodge + 0.04, 0, 0.7);
+    },
+  },
+  {
+    id: "lucky_cache",
+    icon: "$",
+    name: "幸运缓存",
+    stat: "幸运",
+    amount: "+8 幸运",
+    desc: "提高商店高品质商品出现概率。",
+    apply: () => {
+      state.player.luck += 8;
+    },
+  },
+  {
+    id: "emergency_shield",
+    icon: "S",
+    name: "应急护盾",
+    stat: "护盾",
+    amount: "+1 本波护盾",
+    desc: "立即获得一次本波免伤，并提高后续每波护盾次数。",
+    apply: () => {
+      state.player.waveShields += 1;
+      state.player.currentWaveShields += 1;
+    },
+  },
 ];
 
 export function activateWeapon(id) {

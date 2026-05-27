@@ -418,6 +418,98 @@ canvas {
   100% { transform: translateY(0) scale(1); filter: brightness(1); }
 }
 
+@keyframes levelPanelIn {
+  0% { opacity: 0; transform: translateY(18px) scale(0.96); filter: brightness(1.8); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes levelRing {
+  0% { opacity: 0.82; transform: translate(-50%, -50%) scale(0.18); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
+}
+
+@keyframes levelBeam {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes levelScan {
+  from { transform: translateY(-10px); }
+  to { transform: translateY(10px); }
+}
+
+@keyframes levelSpark {
+  0% { opacity: 1; transform: rotate(calc(var(--i) * 20deg)) translateX(0) scale(1); }
+  100% { opacity: 0; transform: rotate(calc(var(--i) * 20deg)) translateX(38vmin) scale(0.2); }
+}
+
+.upgrade-pick-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(255, 209, 102, 0.2), rgba(66, 232, 255, 0.08) 28%, transparent 62%);
+  pointer-events: none;
+  animation: upgradePickFade 760ms ease-out both;
+}
+
+.upgrade-pick-fx span {
+  display: grid;
+  width: 92px;
+  height: 92px;
+  place-items: center;
+  border: 2px solid rgba(255, 209, 102, 0.82);
+  border-radius: 10px;
+  background: rgba(3, 8, 16, 0.86);
+  color: var(--gold);
+  font-size: 42px;
+  box-shadow: 0 0 36px rgba(255, 209, 102, 0.32), inset 0 0 24px rgba(66, 232, 255, 0.14);
+  animation: upgradeIconPop 520ms cubic-bezier(0.18, 1.2, 0.22, 1) both;
+}
+
+.upgrade-pick-fx strong {
+  position: absolute;
+  top: calc(50% + 72px);
+  color: var(--ink);
+  font-size: 22px;
+  text-shadow: 0 0 18px rgba(66, 232, 255, 0.42);
+}
+
+.upgrade-pick-fx i {
+  position: absolute;
+  width: 54vmin;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 209, 102, 0.75), transparent);
+  transform: rotate(calc(45deg * var(--n, 1)));
+  animation: upgradeLine 680ms ease-out both;
+}
+
+.upgrade-pick-fx i:nth-of-type(1) { --n: 1; }
+.upgrade-pick-fx i:nth-of-type(2) { --n: 2; }
+.upgrade-pick-fx i:nth-of-type(3) { --n: 3; }
+.upgrade-pick-fx i:nth-of-type(4) { --n: 4; }
+
+@keyframes upgradePickFade {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes upgradeIconPop {
+  0% { transform: scale(0.45) rotate(-8deg); filter: brightness(2); }
+  58% { transform: scale(1.08) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+}
+
+@keyframes upgradeLine {
+  0% { opacity: 0; transform: rotate(calc(45deg * var(--n))) scaleX(0.2); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(calc(45deg * var(--n))) scaleX(1.5); }
+}
+
 @keyframes hudGain {
   0%, 100% { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.22), 0 16px 40px rgba(0, 0, 0, 0.24); }
   50% { box-shadow: 0 0 0 2px rgba(66, 232, 255, 0.3), 0 0 28px rgba(66, 232, 255, 0.24); }
@@ -563,10 +655,43 @@ h2 {
   width: min(760px, 100%);
 }
 
+.level-up-overlay {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(66, 232, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 50% 58%, rgba(255, 209, 102, 0.12), transparent 42%),
+    rgba(0, 0, 0, 0.62);
+}
+
+.level-up-overlay .choices {
+  position: relative;
+  width: min(1040px, calc(100vw - 28px));
+  border-color: rgba(255, 209, 102, 0.38);
+  background:
+    linear-gradient(180deg, rgba(21, 28, 46, 0.96), rgba(3, 8, 16, 0.96)),
+    repeating-linear-gradient(90deg, rgba(66, 232, 255, 0.05) 0 1px, transparent 1px 18px);
+  box-shadow: 0 0 48px rgba(66, 232, 255, 0.14), inset 0 0 0 1px rgba(255, 209, 102, 0.14);
+  animation: levelPanelIn 360ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.level-up-overlay .eyebrow {
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(255, 209, 102, 0.42);
+}
+
+.level-up-overlay h2 {
+  font-size: clamp(34px, 5vw, 58px);
+  text-shadow: 0 0 20px rgba(66, 232, 255, 0.3);
+}
+
 .choice-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+}
+
+.level-choice-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .choice-card {
@@ -576,6 +701,169 @@ h2 {
   padding: 14px;
   background: rgba(255, 255, 255, 0.07);
   text-align: left;
+}
+
+.level-choice-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 238px;
+  overflow: hidden;
+  border-color: rgba(66, 232, 255, 0.24);
+  padding: 16px;
+  background:
+    linear-gradient(145deg, rgba(66, 232, 255, 0.14), transparent 38%),
+    linear-gradient(315deg, rgba(255, 209, 102, 0.1), transparent 45%),
+    rgba(3, 8, 16, 0.64);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.level-choice-card::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20%;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.14) 47%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-28%);
+  transition: opacity 140ms ease, transform 340ms ease;
+}
+
+.level-choice-card:hover {
+  border-color: rgba(255, 209, 102, 0.72);
+  transform: translateY(-4px);
+  background:
+    linear-gradient(145deg, rgba(66, 232, 255, 0.2), transparent 38%),
+    linear-gradient(315deg, rgba(255, 209, 102, 0.18), transparent 45%),
+    rgba(5, 12, 24, 0.82);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28), 0 0 26px rgba(66, 232, 255, 0.15);
+}
+
+.level-choice-card:hover::before {
+  opacity: 1;
+  transform: translateX(22%);
+}
+
+.upgrade-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border: 1px solid rgba(255, 209, 102, 0.52);
+  border-radius: 6px;
+  background:
+    radial-gradient(circle, rgba(255, 209, 102, 0.18), transparent 62%),
+    rgba(255, 255, 255, 0.06);
+  color: var(--gold);
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.14);
+}
+
+.level-choice-card .upgrade-icon i {
+  width: auto;
+  height: auto;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+}
+
+.upgrade-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.upgrade-copy span {
+  display: inline-block;
+  margin-bottom: 8px;
+  border: 1px solid rgba(66, 232, 255, 0.24);
+  padding: 4px 7px;
+  background: rgba(66, 232, 255, 0.08);
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.upgrade-copy em {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--gold);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.level-choice-card > b {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1;
+  color: rgba(243, 247, 255, 0.76);
+  font-size: 12px;
+}
+
+.level-up-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.level-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 38vmin;
+  height: 38vmin;
+  border: 1px solid rgba(66, 232, 255, 0.32);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: levelRing 1100ms ease-out both;
+}
+
+.level-ring.two {
+  width: 54vmin;
+  height: 54vmin;
+  border-color: rgba(255, 209, 102, 0.22);
+  animation-delay: 90ms;
+}
+
+.level-beam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 120vh;
+  background: linear-gradient(180deg, transparent, rgba(66, 232, 255, 0.28), transparent);
+  transform-origin: center;
+  animation: levelBeam 1400ms ease-out both;
+}
+
+.level-beam.a { transform: translate(-50%, -50%) rotate(54deg); }
+.level-beam.b { transform: translate(-50%, -50%) rotate(-54deg); }
+
+.level-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 9px, rgba(255, 255, 255, 0.035) 9px 10px);
+  opacity: 0.38;
+  animation: levelScan 900ms linear infinite;
+}
+
+.level-sparks i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--gold);
+  box-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
+  transform: rotate(calc(var(--i) * 20deg)) translateX(0);
+  animation: levelSpark 700ms ease-out both;
+  animation-delay: calc(var(--i) * 14ms);
 }
 
 .choice-card strong {
@@ -1760,6 +2048,18 @@ h2 {
 
   .choice-list {
     grid-template-columns: 1fr;
+  }
+
+  .level-up-overlay .choices {
+    width: min(560px, calc(100vw - 18px));
+  }
+
+  .level-choice-list {
+    grid-template-columns: 1fr;
+  }
+
+  .level-choice-card {
+    min-height: 170px;
   }
 
   .difficulty-head {
