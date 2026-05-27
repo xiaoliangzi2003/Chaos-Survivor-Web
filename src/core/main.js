@@ -237,7 +237,7 @@ export async function bootGame() {
       return;
     }
     const dt = Math.min(0.033, elapsed / 1000 || 1 / MAX_FRAME_RATE);
-    lastTime = now - (elapsed % FRAME_MS);
+    lastTime = now;
     fpsAcc += dt;
     fpsFrames++;
     if (fpsAcc >= 0.5) {

@@ -1236,11 +1236,11 @@ h2 {
   grid-template-columns: 250px minmax(430px, 1fr) 360px;
   grid-template-areas:
     "stats weapons detail"
-    "items weapons detail";
-  grid-template-rows: minmax(238px, auto) 1fr;
+    "stats items detail";
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
   padding: 16px 20px 20px;
-  overflow: visible;
+  overflow: hidden;
   height: calc(100% - 76px);
 }
 
@@ -1253,10 +1253,13 @@ h2 {
   border-radius: 6px;
   padding: 14px;
   background: rgba(3, 8, 16, 0.44);
+  overflow: hidden;
 }
 
 .inventory-stats {
   grid-area: stats;
+  min-height: 0;
+  overflow: auto;
 }
 
 .inventory-weapons {
@@ -1272,7 +1275,10 @@ h2 {
 
 .inventory-items {
   grid-area: items;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .inventory-layout h3 {
@@ -1314,7 +1320,10 @@ h2 {
 
 .item-list {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
 }
 
 .item-card {
@@ -1328,6 +1337,28 @@ h2 {
   background:
     linear-gradient(135deg, rgba(66, 232, 255, 0.12), transparent),
     rgba(3, 6, 12, 0.34);
+  cursor: pointer;
+}
+
+.item-card.active {
+  border-color: var(--cyan);
+  background:
+    linear-gradient(135deg, rgba(66, 232, 255, 0.18), rgba(255, 255, 255, 0.06)),
+    rgba(3, 6, 12, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(66, 232, 255, 0.35), 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.item-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  color: rgba(167, 180, 199, 0.68);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 12px;
+  text-align: center;
 }
 
 .item-card i {
@@ -1489,6 +1520,31 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.item-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.item-detail-meta span {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 5px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.item-detail-meta b {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.item-detail-meta strong {
+  color: var(--ink);
+  font-size: 13px;
 }
 
 .weapon-tags.detail-tags {
@@ -1775,11 +1831,11 @@ h2 {
     grid-template-areas:
       "stats"
       "weapons"
-      "detail"
-      "items";
+      "items"
+      "detail";
     grid-template-rows: auto auto auto auto;
     height: calc(100% - 76px);
-    overflow: hidden;
+    overflow: auto;
   }
 
   .inventory-stats,

@@ -14,6 +14,7 @@ let initialized = false;
 let previousMode = "playing";
 let fuseMaterialUid = null;
 let fuseMessage = "";
+let detailSelection = { type: "weapon", id: null };
 
 const dom = {};
 const text = {
@@ -38,6 +39,7 @@ const text = {
   qualityMult: "\u54c1\u8d28\u500d\u7387",
   sell: "\u51fa\u552e",
   sellWeapon: "\u51fa\u552e\u6b66\u5668",
+  sellItem: "\u51fa\u552e\u9053\u5177",
   sold: "\u5df2\u51fa\u552e",
   gain: "\uff0c\u83b7\u5f97",
   fuse: "\u5408\u6210\u6b66\u5668",
@@ -50,6 +52,11 @@ const text = {
   noMaterial: "\u6682\u65e0\u53ef\u5408\u6210\u6b66\u5668",
   fuseHint: "\u540c\u4e00\u79cd\u6b66\u5668\u3001\u540c\u4e00\u79cd\u54c1\u8d28\u624d\u80fd\u5408\u6210\uff1b\u4f20\u8bf4\u54c1\u8d28\u65e0\u6cd5\u7ee7\u7eed\u5408\u6210\u3002",
   coin: "\u91d1\u5e01",
+  items: "\u9053\u5177",
+  noItems: "\u5f53\u524d\u6ca1\u6709\u6240\u6301\u9053\u5177\u3002",
+  noItem: "\u9009\u62e9\u4e00\u4e2a\u9053\u5177\u67e5\u770b\u8be6\u60c5\u3002",
+  quantity: "\u6570\u91cf",
+  quality: "\u54c1\u8d28",
 };
 
 export function initInventoryUi() {
@@ -93,6 +100,7 @@ export function openInventory() {
   if (previousMode === "paused") dom.pauseOverlay?.classList.remove("active");
   state.mode = "inventory";
   fuseMaterialUid = normalizeFuseMaterial()?.uid ?? null;
+  syncDetailSelection();
   renderInventory();
   dom.overlay?.classList.add("active");
   return true;
@@ -103,6 +111,7 @@ export function closeInventory() {
   hideItemTooltip();
   fuseMaterialUid = null;
   fuseMessage = "";
+  detailSelection = { type: "weapon", id: state.inventory?.selectedWeaponUid ?? null };
   dom.overlay?.classList.remove("active");
   state.mode = previousMode === "paused" ? "paused" : "playing";
   if (state.mode === "paused") dom.pauseOverlay?.classList.add("active");
@@ -185,7 +194,7 @@ function renderSlots() {
     } else {
       const info = WEAPON_INFO[slot.id] || { icon: "?", name: slot.id };
       const quality = QUALITY_INFO[slot.quality] || QUALITY_INFO.common;
-      const isActive = state.inventory.selectedWeaponUid === slot.uid;
+      const isActive = detailSelection.type === "weapon" && state.inventory.selectedWeaponUid === slot.uid;
       const isMaterial = fuseMaterialUid === slot.uid;
       const canUseAsMaterial = selected && canFuseWeapons(selected, slot).ok;
       button.className = `weapon-slot${isActive ? " active" : ""}${isMaterial ? " material" : ""}${canUseAsMaterial ? " fuseable" : ""}`;
@@ -194,9 +203,11 @@ function renderSlots() {
         const current = selectedWeaponSlot();
         if (current && canFuseWeapons(current, slot).ok) {
           fuseMaterialUid = slot.uid;
+          detailSelection = { type: "weapon", id: current.uid };
           fuseMessage = "";
         } else {
           selectWeaponSlot(slot.uid);
+          detailSelection = { type: "weapon", id: slot.uid };
           fuseMaterialUid = normalizeFuseMaterial()?.uid ?? null;
           fuseMessage = "";
         }
@@ -208,8 +219,16 @@ function renderSlots() {
 }
 
 function renderDetail() {
+  syncDetailSelection();
+  if (detailSelection.type === "item") return renderItemDetail();
+  renderWeaponDetail();
+}
+
+function renderWeaponDetail() {
   const slot = selectedWeaponSlot();
   dom.detail.innerHTML = "";
+  dom.fuseButton.hidden = false;
+  dom.fuseButton.parentElement.hidden = false;
 
   if (!slot) {
     dom.detail.innerHTML = `<div class="empty-detail">${text.noWeapon}</div>`;
@@ -270,6 +289,52 @@ function renderDetail() {
   };
 }
 
+function renderItemDetail() {
+  const item = state.inventory.items.find((entry) => entry.id === detailSelection.id);
+  dom.detail.innerHTML = "";
+  dom.fuseButton.hidden = true;
+  dom.fuseButton.parentElement.hidden = true;
+  dom.fuseButton.disabled = true;
+  dom.fuseButton.onclick = null;
+
+  if (!item) {
+    dom.detail.innerHTML = `<div class="empty-detail">${text.noItem}</div>`;
+    return;
+  }
+
+  const quality = QUALITY_INFO[item.quality] || QUALITY_INFO.common;
+  const price = itemSellPrice(item);
+  dom.detail.innerHTML = `
+    <div class="weapon-detail-card item-detail-card">
+      <div class="weapon-detail-title">
+        <i class="weapon-detail-icon" style="color:${quality.color}">${item.icon || "?"}</i>
+        <div>
+          <strong>${item.name || item.id}</strong>
+          <div class="quality-chip" style="color:${quality.color}">${quality.name}</div>
+        </div>
+      </div>
+      <p>${item.desc || ""}</p>
+      <div class="item-detail-meta">
+        <span><b>${text.quantity}</b><strong>x${item.qty}</strong></span>
+        <span><b>${text.quality}</b><strong style="color:${quality.color}">${quality.name}</strong></span>
+      </div>
+      <button class="inventory-sell-button" type="button">${text.sellItem} +${price} ${text.coin}</button>
+      ${fuseMessage ? `<p class="fuse-message">${fuseMessage}</p>` : ""}
+    </div>`;
+
+  dom.detail.querySelector(".inventory-sell-button")?.addEventListener("click", () => {
+    const current = state.inventory.items.find((entry) => entry.id === detailSelection.id);
+    if (!current) return;
+    const currentPrice = itemSellPrice(current);
+    const itemName = current.name || current.id;
+    const result = sellInventoryItem(current.id);
+    const stillOwned = state.inventory.items.some((entry) => entry.id === current.id);
+    if (!stillOwned) detailSelection = { type: "weapon", id: state.inventory.selectedWeaponUid };
+    fuseMessage = result.ok ? `${text.sold} ${itemName}${text.gain} ${currentPrice} ${text.coin}\u3002` : result.reason;
+    renderInventory();
+  });
+}
+
 function normalizeFuseMaterial() {
   const selected = selectedWeaponSlot();
   if (!selected) return null;
@@ -312,9 +377,18 @@ function renderFuseMini(slot, label) {
 
 function renderItems() {
   dom.items.innerHTML = "";
+  const count = document.querySelector(".inventory-items h3 span");
+  if (count) count.textContent = `${state.inventory.items.length}`;
+  if (!state.inventory.items.length) {
+    const empty = document.createElement("div");
+    empty.className = "item-empty";
+    empty.textContent = text.noItems;
+    dom.items.appendChild(empty);
+    return;
+  }
   for (const item of state.inventory.items) {
     const row = document.createElement("div");
-    row.className = "item-card";
+    row.className = `item-card${detailSelection.type === "item" && detailSelection.id === item.id ? " active" : ""}`;
     const qty = item.qty;
     const price = itemSellPrice(item);
     const tipText = `${item.name || item.id}: ${item.desc || ""}`;
@@ -326,6 +400,13 @@ function renderItems() {
     row.addEventListener("mouseenter", (event) => showItemTooltip(event, tipText));
     row.addEventListener("mousemove", (event) => moveItemTooltip(event));
     row.addEventListener("mouseleave", hideItemTooltip);
+    row.addEventListener("click", () => {
+      detailSelection = { type: "item", id: item.id };
+      fuseMaterialUid = null;
+      fuseMessage = "";
+      hideItemTooltip();
+      renderInventory();
+    });
     row.querySelector("button")?.addEventListener("click", (event) => {
       event.stopPropagation();
       hideItemTooltip();
@@ -336,6 +417,17 @@ function renderItems() {
     });
     dom.items.appendChild(row);
   }
+}
+
+function syncDetailSelection() {
+  if (!state.inventory) return;
+  if (detailSelection.type === "item") {
+    if (state.inventory.items.some((entry) => entry.id === detailSelection.id)) return;
+    detailSelection = { type: "weapon", id: state.inventory.selectedWeaponUid };
+  }
+  const selected = selectedWeaponSlot();
+  if (!selected && state.inventory.weaponSlots[0]) selectWeaponSlot(state.inventory.weaponSlots[0].uid);
+  detailSelection = { type: "weapon", id: state.inventory.selectedWeaponUid ?? null };
 }
 
 function showItemTooltip(event, content) {
