@@ -115,6 +115,7 @@ export function createWeapons() {
     pulse: { level: 0, timer: 2.4, cooldown: 2.7, damage: 80, radius: 132, quality: "common", qualityMult: 1 },
     prism_railgun: { level: 0, timer: 1.05, cooldown: 1.65, count: 1, damage: 76, range: 960, width: 13, hitLimit: 6, refractionRange: 155, quality: "common", qualityMult: 1 },
     void_singularity: { level: 0, timer: 1.35, cooldown: 2.85, count: 1, damage: 28, range: 820, speed: 185, radius: 26, pullRadius: 170, damageRadius: 82, collapseRadius: 132, pullStrength: 310, pulseInterval: 0.58, life: 3.1, quality: "common", qualityMult: 1 },
+    tesla_mine_chain: { level: 0, timer: 1.1, cooldown: 2.05, count: 1, damage: 48, range: 760, triggerRadius: 118, chainRange: 185, chainCount: 4, nodeLife: 5.2, armTime: 0.24, pulseCooldown: 0.62, fieldRadius: 108, quality: "common", qualityMult: 1 },
   };
 }
 

@@ -52,7 +52,7 @@ export function drawWeaponPreview(ctx, canvas, weapon, t) {
   const cy = h / 2;
   if (!weapon) return;
   const rank = qualityRank(weapon);
-  const baseColor = { arc: "#42e8ff", ice: "#9ff4ff", missile: "#ffb347", boomerang: "#ff65d8", drone: "#77ff8a", pulse: "#77ff8a", prism_railgun: "#7df9ff", void_singularity: "#8b5cf6" }[weapon.id] || "#42e8ff";
+  const baseColor = { arc: "#42e8ff", ice: "#9ff4ff", missile: "#ffb347", boomerang: "#ff65d8", drone: "#77ff8a", pulse: "#77ff8a", prism_railgun: "#7df9ff", void_singularity: "#8b5cf6", tesla_mine_chain: "#42e8ff" }[weapon.id] || "#42e8ff";
   const color = qualityColor(weapon, baseColor);
   const scale = Math.min(1, Math.max(0.46, Math.min((w * 0.5 - 24) / 190, (h * 0.5 - 22) / 96)));
   ctx.save();
@@ -67,6 +67,7 @@ export function drawWeaponPreview(ctx, canvas, weapon, t) {
   else if (weapon.id === "pulse") drawPulse(ctx, 0, 0, t, rank, color);
   else if (weapon.id === "prism_railgun") drawPrismRailgun(ctx, 0, 0, t, rank, color);
   else if (weapon.id === "void_singularity") drawVoidSingularity(ctx, 0, 0, t, rank, color);
+  else if (weapon.id === "tesla_mine_chain") drawTeslaMineChain(ctx, 0, 0, t, rank, color);
   ctx.restore();
 }
 
@@ -331,6 +332,102 @@ function drawVoidSingularity(ctx, cx, cy, t, rank, color) {
     ring(ctx, bx, by, 38 + k * 72, rank >= 4 ? "#ffd166" : color, 0.75 * (1 - k));
     ring(ctx, bx, by, 20 + k * 44, "#ffffff", 0.42 * (1 - k));
   }
+}
+
+function drawTeslaMineChain(ctx, cx, cy, t, rank, color) {
+  const nodes = [
+    { x: cx + 74, y: cy - 48, p: 0 },
+    { x: cx + 132, y: cy + 10, p: 1.4 },
+    { x: cx + 52, y: cy + 58, p: 2.7 },
+  ];
+  const targets = [
+    { x: cx + 122 + Math.sin(t * 2.2) * 4, y: cy - 46, p: 0.2 },
+    { x: cx + 164 + Math.cos(t * 2.6) * 5, y: cy + 20, p: 1.7 },
+    { x: cx + 82 + Math.sin(t * 1.8) * 5, y: cy + 72, p: 2.6 },
+  ];
+  if (rank >= 4) nodes.push({ x: cx + 150, y: cy - 56, p: 4.1, mini: true });
+
+  for (const node of nodes) {
+    previewTeslaNode(ctx, node.x, node.y, t + node.p, rank, color, node.mini);
+  }
+  for (const target of targets) drawDummy(ctx, target.x, target.y, color);
+
+  const cycle = (t % 1.8) / 1.8;
+  if (cycle > 0.18 && cycle < 0.72) {
+    lightning(ctx, nodes[0].x, nodes[0].y, targets[0].x, targets[0].y, t, color, 0.95);
+    lightning(ctx, targets[0].x, targets[0].y, targets[1].x, targets[1].y, t + 1, color, 0.86);
+    lightning(ctx, targets[1].x, targets[1].y, targets[2].x, targets[2].y, t + 2, rank >= 4 ? "#ffd166" : color, 0.72);
+    if (rank >= 2) lightning(ctx, nodes[0].x, nodes[0].y, nodes[1].x, nodes[1].y, t + 3, "#ffffff", 0.42);
+    if (rank >= 4) lightning(ctx, nodes[3].x, nodes[3].y, targets[1].x, targets[1].y, t + 4, "#ffd166", 0.78);
+    ring(ctx, nodes[0].x, nodes[0].y, 42 + cycle * 46, color, 0.62 * (1 - cycle));
+  }
+  if (rank >= 3) {
+    const field = 54 + Math.sin(t * 6) * 3;
+    ctx.save();
+    ctx.translate(nodes[1].x, nodes[1].y);
+    ctx.rotate(t);
+    ctx.strokeStyle = colorWithAlpha(color, 0.42);
+    ctx.lineWidth = 1.5;
+    for (let ringIndex = 0; ringIndex < 2; ringIndex++) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = i * TAU / 6 + ringIndex * 0.22;
+        const r = field * (0.48 + ringIndex * 0.28);
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function previewTeslaNode(ctx, x, y, t, rank, color, mini = false) {
+  const r = mini ? 10 : 15;
+  glow(ctx, x, y, r * (rank >= 3 ? 3.4 : 2.8), color, 0.28);
+  ring(ctx, x, y, r * 3.4 + Math.sin(t * 5) * 3, color, 0.18);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(t * 1.4);
+  ctx.strokeStyle = colorWithAlpha(rank >= 4 ? "#ffd166" : color, 0.52);
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 3; i++) {
+    ctx.rotate(TAU / 3);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 2.1, r * 0.72, 0, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(5,10,18,0.92)";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = i * TAU / 6 + Math.PI / 6;
+    const px = Math.cos(a) * r;
+    const py = Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 4; i++) {
+    const sx = -r * 0.45 + i * r * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(sx, -r * 0.6);
+    ctx.lineTo(sx + Math.sin(t * 8 + i) * 2.5, r * 0.65);
+    ctx.stroke();
+  }
+  ctx.fillStyle = colorWithAlpha("#ffffff", 0.88);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.32, 0, TAU);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawPreviewBlackHole(ctx, x, y, core, diskR, t, rank, color) {

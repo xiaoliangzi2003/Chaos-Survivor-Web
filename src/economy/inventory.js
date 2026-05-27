@@ -60,6 +60,12 @@ export const WEAPON_INFO = {
     desc: "发射缓慢移动的黑洞核心，吸附敌人并在寿命结束时坍缩爆发。",
     tags: ["引力吸附", "持续伤害", "坍缩爆发"],
   },
+  tesla_mine_chain: {
+    icon: "⌬",
+    name: "特斯拉雷链",
+    desc: "在地面布置电磁节点，敌人靠近后触发多目标连锁放电。",
+    tags: ["电磁节点", "连锁放电", "陷阱控场"],
+  },
 };
 
 export function addWeaponToInventory(id, quality = "common") {

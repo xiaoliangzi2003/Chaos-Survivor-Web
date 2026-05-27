@@ -7,7 +7,7 @@ import { playSfx } from "../audio.js";
 import { addWeaponToInventory, QUALITY_INFO, QUALITY_ORDER, WEAPON_INFO } from "../economy/inventory.js";
 import { attackSpeedMultiplier, weaponProjectileBonus, weaponRangeBonus } from "./items.js";
 
-export const STARTER_WEAPONS = ["arc", "ice", "missile", "boomerang", "drone", "prism_railgun", "void_singularity"].map((id) => ({ id, ...WEAPON_INFO[id] }));
+export const STARTER_WEAPONS = ["arc", "ice", "missile", "boomerang", "drone", "prism_railgun", "void_singularity", "tesla_mine_chain"].map((id) => ({ id, ...WEAPON_INFO[id] }));
 
 export const UPGRADE_DEFS = [
   {
@@ -148,6 +148,8 @@ export function updateWeapons(dt) {
   updatePulseWeapon(dt);
   updatePrismRailgunWeapon(dt);
   updateVoidSingularityWeapon(dt);
+  updateTeslaMineChainWeapon(dt);
+  updateTeslaNodes(dt);
   updateProjectiles(dt);
   updateWeaponFx(dt);
 }
@@ -804,6 +806,197 @@ function fireSingularity(angle, base, shot, rank, color, index) {
     secondCollapse: rank >= 4,
   });
   pulse(x, y, base.pullRadius * 0.38, color, 0.16);
+}
+
+function updateTeslaMineChainWeapon(dt) {
+  const w = state.weapons.tesla_mine_chain;
+  if (!tickWeapon(w, dt)) return;
+  const count = Math.max(1, w.count || 1) + weaponProjectileBonus(w);
+  const anchor = chooseTeslaAnchor(w);
+  for (let i = 0; i < count; i++) {
+    const quality = weaponQualityAt(w, i);
+    const shot = weaponViewForQuality(w, quality);
+    const rank = qualityRank(shot);
+    const color = qualityColor(shot, "#42e8ff");
+    placeTeslaNode(w, shot, rank, color, anchor, i, count, false);
+    if (rank >= 4) placeTeslaNode(w, shot, rank, color, anchor, i + 0.5, count, true);
+  }
+  playSfx("shoot");
+}
+
+function chooseTeslaAnchor(w) {
+  const p = state.player;
+  const range = w.range + weaponRangeBonus();
+  const candidates = [];
+  queryEnemies(p.x, p.y, range, candidates);
+  let best = null;
+  let bestScore = -Infinity;
+  for (const e of candidates) {
+    if (e.dead) continue;
+    const nearby = [];
+    queryEnemies(e.x, e.y, 170, nearby);
+    const density = nearby.filter((other) => !other.dead).length;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    const score = density * 160 - d;
+    if (score > bestScore) {
+      bestScore = score;
+      best = e;
+    }
+  }
+  if (best) return { x: best.x, y: best.y, angle: Math.atan2(best.y - p.y, best.x - p.x) };
+  const angle = Math.atan2(p.dirY, p.dirX);
+  return { x: p.x + Math.cos(angle) * 150, y: p.y + Math.sin(angle) * 150, angle };
+}
+
+function placeTeslaNode(base, shot, rank, color, anchor, index, count, mini) {
+  const spread = mini ? 46 : 32;
+  const a = anchor.angle + Math.PI / 2 + (index - (count - 1) / 2) * 0.7;
+  const offset = (index - (count - 1) / 2) * spread + (mini ? 42 : 0);
+  const half = WORLD_SIZE / 2 - 40;
+  const x = clamp(anchor.x + Math.cos(a) * offset, -half, half);
+  const y = clamp(anchor.y + Math.sin(a) * offset, -half, half);
+  const life = (base.nodeLife + rank * 0.28) * (mini ? 0.72 : 1);
+  const damageScale = mini ? 0.52 : 1;
+  world.itemObjects.push({
+    kind: "tesla_node",
+    x,
+    y,
+    r: mini ? 12 : 17,
+    quality: shot.quality || "common",
+    qualityRank: rank,
+    qualityMult: shot.qualityMult || 1,
+    color,
+    damage: weaponPower(shot, base.damage) * damageScale,
+    triggerRadius: (base.triggerRadius + (rank >= 1 ? 22 : 0) + rank * 4 + weaponRangeBonus() * 0.08) * (mini ? 0.72 : 1),
+    chainRange: base.chainRange + (rank >= 1 ? 30 : 0) + rank * 9,
+    chainCount: base.chainCount + (rank >= 2 ? 1 : 0) + (rank >= 4 ? 1 : 0),
+    pulseCooldown: Math.max(0.36, base.pulseCooldown - rank * 0.035),
+    pulseTimer: base.armTime + 0.08 + index * 0.05,
+    armTime: base.armTime,
+    life,
+    maxLife: life,
+    fieldRadius: base.fieldRadius + rank * 12,
+    seed: Math.random() * 999 + index * 31,
+    mini,
+    t: 0,
+  });
+  pulse(x, y, mini ? 30 : 44, color, 0.12);
+  world.weaponFx.push({ kind: "teslaNodePulse", x, y, radius: mini ? 64 : 86, color, rank, life: 0.28, maxLife: 0.28, seed: Math.random() * 999 });
+}
+
+function updateTeslaNodes(dt) {
+  for (const node of world.itemObjects) {
+    if (node.kind !== "tesla_node") continue;
+    node.armTime = Math.max(0, (node.armTime || 0) - dt);
+    node.pulseTimer = Math.max(0, (node.pulseTimer || 0) - dt);
+    if (node.armTime > 0 || node.pulseTimer > 0) continue;
+    const target = nearestTeslaTarget(node);
+    if (!target) continue;
+    node.pulseTimer = node.pulseCooldown;
+    dischargeTeslaNode(node, target);
+  }
+}
+
+function nearestTeslaTarget(node) {
+  const hits = [];
+  queryEnemies(node.x, node.y, node.triggerRadius, hits);
+  let best = null;
+  let bestD = Infinity;
+  for (const e of hits) {
+    if (e.dead) continue;
+    const d = distSq(node.x, node.y, e.x, e.y);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  return best;
+}
+
+function dischargeTeslaNode(node, firstTarget) {
+  const visited = new Set();
+  const segments = [];
+  chainTeslaFrom(node.x, node.y, firstTarget, node, visited, segments, node.damage, node.chainCount);
+  const relay = node.qualityRank >= 2 ? nearestTeslaRelay(node) : null;
+  if (relay) {
+    segments.push({ x1: node.x, y1: node.y, x2: relay.x, y2: relay.y, seed: Math.random() * 999, relay: true });
+    const relayTarget = nearestTeslaTarget(relay);
+    if (relayTarget && !visited.has(relayTarget)) chainTeslaFrom(relay.x, relay.y, relayTarget, node, visited, segments, node.damage * 0.46, node.qualityRank >= 4 ? 2 : 1);
+  }
+  if (node.qualityRank >= 4) {
+    const fork = nextTeslaTarget({ x: node.x, y: node.y }, node.chainRange * 0.9, visited);
+    if (fork) chainTeslaFrom(node.x, node.y, fork, node, visited, segments, node.damage * 0.58, 2);
+  }
+  if (node.qualityRank >= 3) teslaFieldDamage(node, visited);
+  if (segments.length) {
+    addCameraShake(Math.min(5.5, 1.6 + segments.length * 0.32));
+    world.weaponFx.push({ kind: "teslaChain", segments, color: node.color, rank: node.qualityRank, life: 0.17, maxLife: 0.17 });
+    world.weaponFx.push({ kind: "teslaNodePulse", x: node.x, y: node.y, radius: node.triggerRadius, color: node.color, rank: node.qualityRank, life: 0.32, maxLife: 0.32, seed: node.seed });
+    playSfx("hit");
+  }
+}
+
+function chainTeslaFrom(x, y, firstTarget, node, visited, segments, baseDamage, maxTargets) {
+  let source = { x, y };
+  let target = firstTarget;
+  let damage = baseDamage;
+  let count = 0;
+  while (target && count < maxTargets) {
+    visited.add(target);
+    count++;
+    segments.push({ x1: source.x, y1: source.y, x2: target.x, y2: target.y, seed: Math.random() * 999 });
+    damageEnemy(target, damage, source.x, source.y);
+    applyKnockback(target, target.x - source.x, target.y - source.y, target.boss ? 32 : 92);
+    burst(target.x, target.y, node.qualityRank >= 2 ? 7 : 5, node.color, 150);
+    source = target;
+    damage *= 0.72;
+    target = nextTeslaTarget(source, node.chainRange, visited);
+  }
+}
+
+function nextTeslaTarget(source, range, visited) {
+  const hits = [];
+  queryEnemies(source.x, source.y, range, hits);
+  let best = null;
+  let bestD = range * range;
+  for (const e of hits) {
+    if (e.dead || visited.has(e)) continue;
+    const d = distSq(source.x, source.y, e.x, e.y);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  return best;
+}
+
+function nearestTeslaRelay(node) {
+  let best = null;
+  let bestD = node.chainRange * node.chainRange;
+  for (const other of world.itemObjects) {
+    if (other === node || other.kind !== "tesla_node" || other.armTime > 0) continue;
+    const d = distSq(node.x, node.y, other.x, other.y);
+    if (d < bestD) {
+      bestD = d;
+      best = other;
+    }
+  }
+  return best;
+}
+
+function teslaFieldDamage(node, visited) {
+  const hits = [];
+  queryEnemies(node.x, node.y, node.fieldRadius, hits);
+  let count = 0;
+  for (const e of hits) {
+    if (e.dead || visited.has(e) || count >= 6) continue;
+    count++;
+    const d = Math.max(1, Math.hypot(e.x - node.x, e.y - node.y));
+    const falloff = clamp(1 - d / node.fieldRadius, 0.25, 1);
+    damageEnemy(e, node.damage * 0.22 * falloff, node.x, node.y);
+    applyKnockback(e, e.x - node.x, e.y - node.y, e.boss ? 18 : 46);
+  }
+  world.weaponFx.push({ kind: "teslaField", x: node.x, y: node.y, radius: node.fieldRadius, color: node.color, rank: node.qualityRank, life: 0.62, maxLife: 0.62, seed: node.seed });
 }
 
 function tickWeapon(w, dt) {

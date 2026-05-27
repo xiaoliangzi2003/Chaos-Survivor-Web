@@ -430,6 +430,12 @@ function drawWeaponFx(ctx) {
       drawVoidPulseFx(ctx, fx, k);
     } else if (fx.kind === "voidCollapse") {
       drawVoidCollapseFx(ctx, fx, k);
+    } else if (fx.kind === "teslaChain") {
+      drawTeslaChainFx(ctx, fx, k);
+    } else if (fx.kind === "teslaNodePulse") {
+      drawTeslaNodePulseFx(ctx, fx, k);
+    } else if (fx.kind === "teslaField") {
+      drawTeslaFieldFx(ctx, fx, k);
     } else if (fx.kind === "prismBurst") {
       drawPrismBurstFx(ctx, fx, k);
     } else if (fx.kind === "bladeBloom") {
@@ -801,6 +807,89 @@ function drawFallingStar(ctx, starObj) {
   ctx.restore();
 }
 
+function drawTeslaNode(ctx, node) {
+  const t = state.time + (node.seed || 0);
+  const rank = node.qualityRank || 0;
+  const armed = (node.armTime || 0) <= 0;
+  const charge = armed ? 1 : 0.45 + Math.sin(t * 18) * 0.12;
+  const color = node.color || "#42e8ff";
+  const r = node.r || 16;
+  ctx.save();
+  ctx.translate(node.x, node.y);
+  ctx.globalCompositeOperation = "lighter";
+  glow(ctx, 0, 0, r * (armed ? 3.1 : 2.1), armed ? 0.28 : 0.16, color);
+
+  ctx.strokeStyle = hexToRgba(color, armed ? 0.26 : 0.14);
+  ctx.lineWidth = 1;
+  ctx.setLineDash([7, 9]);
+  ctx.beginPath();
+  ctx.arc(0, 0, node.triggerRadius * (0.98 + Math.sin(t * 2) * 0.015), 0, TAU);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.save();
+  ctx.rotate(t * 1.2);
+  ctx.strokeStyle = hexToRgba(rank >= 4 ? "#ffd166" : color, 0.42);
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < 3; i++) {
+    ctx.rotate(TAU / 3);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 2.2, r * 0.72, 0, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "rgba(5,10,18,0.92)";
+  ctx.strokeStyle = hexToRgba(color, 0.86);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = i * TAU / 6 + Math.PI / 6;
+    const px = Math.cos(a) * r * 1.22;
+    const py = Math.sin(a) * r * 1.22;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = hexToRgba("#ffffff", 0.74 * charge);
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 4; i++) {
+    const x = -r * 0.45 + i * r * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(x, -r * 0.68);
+    ctx.lineTo(x + Math.sin(t * 9 + i) * 3, r * 0.7);
+    ctx.stroke();
+  }
+  const core = ctx.createRadialGradient(0, 0, 1, 0, 0, r * 0.85);
+  core.addColorStop(0, hexToRgba("#ffffff", 0.92 * charge));
+  core.addColorStop(0.46, hexToRgba(color, 0.72 * charge));
+  core.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.86, 0, TAU);
+  ctx.fill();
+
+  const sparks = rank >= 3 ? 8 : 5;
+  ctx.strokeStyle = hexToRgba(rank >= 4 ? "#ffd166" : color, 0.62);
+  ctx.lineWidth = 1.1;
+  for (let i = 0; i < sparks; i++) {
+    const a = t * (i % 2 ? -1.8 : 2.1) + i * TAU / sparks;
+    const bend = a + Math.sin(t * 7 + i) * 0.18;
+    const inner = r * (0.95 + (i % 2) * 0.12);
+    const outer = r * (1.55 + (i % 3) * 0.18);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+    ctx.lineTo(Math.cos(bend) * outer, Math.sin(bend) * outer);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawArcFx(ctx, fx, k) {
   ctx.lineCap = "round";
   for (const seg of fx.segments) {
@@ -1109,6 +1198,93 @@ function drawVoidCollapseFx(ctx, fx, k) {
   ctx.restore();
 }
 
+function drawTeslaChainFx(ctx, fx, k) {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  for (const seg of fx.segments || []) {
+    const points = jaggedLine(seg.x1, seg.y1, seg.x2, seg.y2, seg.relay ? 7 : 9, seg.relay ? 7 : 12, (seg.seed || 0) + state.time * 190);
+    ctx.strokeStyle = hexToRgba(fx.color, k * 0.22);
+    ctx.lineWidth = (fx.rank >= 4 ? 13 : 10) * k;
+    strokePolyline(ctx, points);
+    ctx.strokeStyle = hexToRgba("#ffffff", k * 0.98);
+    ctx.lineWidth = Math.max(1.8, 4.2 * k);
+    strokePolyline(ctx, points);
+    ctx.strokeStyle = hexToRgba(seg.relay ? "#ffd166" : fx.color, k * 0.92);
+    ctx.lineWidth = 1.8;
+    strokePolyline(ctx, points);
+    glow(ctx, seg.x2, seg.y2, 24, k * 0.32, seg.relay ? "#ffd166" : fx.color);
+  }
+  ctx.lineCap = "butt";
+  ctx.restore();
+}
+
+function drawTeslaNodePulseFx(ctx, fx, k) {
+  const progress = 1 - k;
+  const r = fx.radius * (0.18 + progress * 0.92);
+  ctx.save();
+  ctx.translate(fx.x, fx.y);
+  ctx.rotate((fx.seed || 0) + state.time * 3.2);
+  ctx.globalCompositeOperation = "lighter";
+  glow(ctx, 0, 0, r * 0.38, k * 0.28, fx.color);
+  ctx.strokeStyle = hexToRgba("#ffffff", k * 0.72);
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.58, 0, TAU);
+  ctx.stroke();
+  ctx.strokeStyle = hexToRgba(fx.rank >= 4 ? "#ffd166" : fx.color, k * 0.84);
+  ctx.lineWidth = 2.6;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 1.72);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (let i = 0; i < 8; i++) {
+    const a = i * TAU / 8;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r * 0.68, Math.sin(a) * r * 0.68);
+    ctx.lineTo(Math.cos(a + 0.05) * r, Math.sin(a + 0.05) * r);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawTeslaFieldFx(ctx, fx, k) {
+  const r = fx.radius * (0.96 + Math.sin(state.time * 7 + (fx.seed || 0)) * 0.025);
+  ctx.save();
+  ctx.translate(fx.x, fx.y);
+  ctx.rotate((fx.seed || 0) + state.time * 0.8);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = hexToRgba(fx.color, k * 0.075);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = hexToRgba(fx.color, k * 0.52);
+  ctx.lineWidth = 1.4;
+  for (let ring = 0; ring < 3; ring++) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 + ring * 0.18;
+      const rr = r * (0.36 + ring * 0.22);
+      const x = Math.cos(a) * rr;
+      const y = Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.strokeStyle = hexToRgba("#ffffff", k * 0.34);
+  for (let i = 0; i < 12; i++) {
+    const a = i * TAU / 12 - state.time * 1.1;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2);
+    ctx.lineTo(Math.cos(a) * r * 0.96, Math.sin(a) * r * 0.96);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawPrismBurstFx(ctx, fx, k) {
   glow(ctx, fx.x, fx.y, 22, k * 0.34, fx.color);
   for (const p of fx.points || []) {
@@ -1290,6 +1466,7 @@ function drawItemObjects(ctx) {
     if (obj.kind === "turret") drawAllyTurret(ctx, obj);
     else if (obj.kind === "landmine") drawAllyMine(ctx, obj);
     else if (obj.kind === "fallingStar") drawFallingStar(ctx, obj);
+    else if (obj.kind === "tesla_node") drawTeslaNode(ctx, obj);
   }
 }
 
